@@ -1,0 +1,21 @@
+{
+  "region": "us",
+  "crisis": {
+    "immediate_danger": "If you are in immediate danger, call 911 or your local emergency number.",
+    "lifeline": {
+      "name": "988 Suicide & Crisis Lifeline",
+      "phone": "988",
+      "text": "988",
+      "hours": "24/7",
+      "note": "Call or text"
+    },
+    "text_line": {
+      "name": "Crisis Text Line",
+      "number": "741741",
+      "keyword": "HOME",
+      "hours": "24/7",
+      "note": "Text HOME to 741741"
+    }
+  },
+  "support_note": "You don't have to be in crisis to use these lines. They are there for support."
+}
