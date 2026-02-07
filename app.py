@@ -52,6 +52,18 @@ from resources import (
 )
 from emotion import detect_emotion, explain_emotion
 from plan_generator import get_coping_plan_enhanced
+from ml.feedback_schema import (
+    build_feedback_row,
+    feedback_rows_to_csv,
+    FEEDBACK_CSV_COLUMNS,
+)
+from ml.coping_recommender import load_coping_model as _load_coping_model_raw, recommend_action
+from ml.actions import ACTIONS, get_action_by_id, suggest_action_rules
+
+@st.cache_resource
+def load_coping_model():
+    """Load coping action recommender model once (cached). Returns (pipe, meta) or (None, None)."""
+    return _load_coping_model_raw()
 from ui.components import (
     glass_card,
     motion_container,
@@ -64,6 +76,7 @@ from ui.components import (
     survey_encouragement,
 )
 from ui.butterfly_bg import butterfly_background
+from ui.chat import render_chat_widget
 from games.breathing import render_breathing_game
 from games.memory_match import render_memory_match
 from games.shell_game import render_shell_game
@@ -382,6 +395,14 @@ def init_state():
         "result_help": None,
         "inner_weather": None,
         "results_60_done": False,
+        "chat_messages": [],
+        "feedback_opt_in": False,
+        "feedback_rows": [],
+        "feedback_recorded_for_action": False,
+        "results_suggested_action": None,
+        "results_ml_used": False,
+        "results_ml_confidence": 0.0,
+        "results_action_taken": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -842,31 +863,13 @@ elif st.session_state.step == "results":
         # R1) Calm meter (visual feedback — "How much you've been carrying")
         calm_meter(phq2_score, gad2_score)
 
-        # R2) Choose what you need most (1 tap personalization) — updates One Action
-        st.markdown("**Right now I need…**")
-        need_cols = st.columns(len(NEED_MOST_OPTIONS))
-        for i, opt in enumerate(NEED_MOST_OPTIONS):
-            with need_cols[i]:
-                if st.button(opt, key=f"need_most_{i}", use_container_width=True):
-                    st.session_state.need_most = opt
-                    st.rerun()
-        if st.session_state.get("need_most"):
-            st.caption(f"Showing action for **{st.session_state.need_most}**.")
-
-        # Result Panel: 4 outputs (One Action can be overridden by need_most)
-        action_text = get_action_for_need(st.session_state.need_most) if st.session_state.get("need_most") else display_action
-        u, a, r, s = html.escape(display_understanding), html.escape(action_text), html.escape(suggestion["reassurance"]), html.escape(suggestion["support"])
+        # Result Panel: Understanding, Reassurance, Support (no single "One action" — we show 6 actions below)
+        u, r, s = html.escape(display_understanding), html.escape(suggestion["reassurance"]), html.escape(suggestion["support"])
         understanding_html = (
             f'<div class="cc-card-section">'
             f'<span class="cc-card-icon">💬</span><div class="cc-card-section-inner">'
             f'<div class="cc-card-section-title">Understanding</div>'
             f'<div class="cc-card-section-body">{u}</div></div></div>'
-        )
-        action_html = (
-            f'<div class="cc-card-section">'
-            f'<span class="cc-card-icon">🎯</span><div class="cc-card-section-inner">'
-            f'<div class="cc-card-section-title">One action</div>'
-            f'<div class="cc-card-section-body">{a}</div></div></div>'
         )
         reassurance_html = (
             f'<div class="cc-card-section">'
@@ -880,23 +883,109 @@ elif st.session_state.step == "results":
             f'<div class="cc-card-section-title">Support</div>'
             f'<div class="cc-card-section-body">{s}</div></div></div>'
         )
-        glass_card(understanding_html + action_html + reassurance_html + support_html, "")
+        glass_card(understanding_html + reassurance_html + support_html, "")
 
-        # R3) Do the action inside the app (live timer → completion "Done ✅")
-        if st.button("Start 60-second reset", type="primary", key="reset_60"):
-            st.session_state.results_60_done = True
-            breathing_timer_placeholder(60)
-            st.rerun()
-        if st.session_state.get("results_60_done"):
-            st.success("Done ✅")
-            st.markdown("**Did this help?**")
-            help_choice = st.radio("", ["Yes", "A little", "Not really"], key="result_help_radio", label_visibility="collapsed", horizontal=True)
-            if help_choice:
-                st.session_state.result_help = "yes" if help_choice == "Yes" else ("a_little" if help_choice == "A little" else "not_really")
-            if st.session_state.get("result_help"):
-                msg = DID_THIS_HELP_SUGGESTIONS.get(st.session_state.result_help, "")
-                if msg:
-                    st.caption(msg)
+        # Suggested action (ML or rules) — compute once per results view
+        if st.session_state.get("results_suggested_action") is None:
+            pipe, meta = load_coping_model()
+            ctx = st.session_state.get("context") or {}
+            suggested_id, conf = recommend_action(
+                phq2_score, gad2_score,
+                ctx.get("feeling_today"),
+                ctx.get("workload_stress"),
+                need_most=None,
+                text_emotion_label=st.session_state.get("text_emotion_label"),
+                pipe=pipe,
+                meta=meta,
+            )
+            st.session_state.results_suggested_action = suggested_id
+            st.session_state.results_ml_used = conf >= 0.35
+            st.session_state.results_ml_confidence = conf
+
+        suggested_id = st.session_state.results_suggested_action
+        suggested_info = get_action_by_id(suggested_id) or ACTIONS[0]
+        st.markdown(f"**Try an action — suggested for you: {suggested_info['emoji']} {suggested_info['label']}**")
+        if st.session_state.get("results_ml_used"):
+            st.caption("Personalization model active.")
+        st.markdown("Pick any and click **Start now**. Then tell us if it helped.")
+
+        # In-flow: user clicked "Start now" on an action — show that action then "Did this help?"
+        action_taken = st.session_state.get("results_action_taken")
+        if action_taken:
+            act = get_action_by_id(action_taken)
+            if act:
+                st.markdown(f"**You chose: {act['emoji']} {act['label']}**")
+                if action_taken == "breathing_60s":
+                    breathing_timer_placeholder(60)
+                elif action_taken == "grounding_54321":
+                    glass_card(_markdown_to_html_bold(GROUNDING_SCRIPT).replace("  ", " &nbsp; "), "")
+                    grounding_checkboxes()
+                elif action_taken == "reframe_prompt":
+                    st.markdown("What's one small step that would help right now? (Write or say it.)")
+                    st.text_input("Optional: type it here", key="reframe_input", label_visibility="collapsed")
+                elif action_taken == "tiny_task":
+                    st.markdown("Pick one small thing (e.g. clear the desk, fill water) and do it for 2 minutes.")
+                    breathing_timer_placeholder(120)  # 2 min
+                elif action_taken == "short_walk":
+                    st.markdown("Step outside or walk around the room for 2 minutes.")
+                    breathing_timer_placeholder(120)
+                elif action_taken == "reach_out":
+                    st.caption("Copy this message to send to someone you trust:")
+                    st.code(get_talk_draft(), language=None)
+
+                st.success("Done ✅")
+                st.markdown("**Did this help?**")
+                help_choice = st.radio("", ["Yes", "A little", "Not really"], key="result_help_radio", label_visibility="collapsed", horizontal=True)
+                if help_choice:
+                    st.session_state.result_help = "yes" if help_choice == "Yes" else ("a_little" if help_choice == "A little" else "not_really")
+                    if st.session_state.get("feedback_opt_in"):
+                        _ctx = st.session_state.get("context") or {}
+                        row = build_feedback_row(
+                            phq2_score=phq2_score,
+                            gad2_score=gad2_score,
+                            feeling_today=_ctx.get("feeling_today"),
+                            workload_stress=_ctx.get("workload_stress"),
+                            need_most=None,
+                            text_emotion_label=st.session_state.get("text_emotion_label"),
+                            action_suggested=st.session_state.results_suggested_action or "",
+                            action_taken=action_taken,
+                            result_help=st.session_state.result_help,
+                            ml_used=st.session_state.get("results_ml_used", False),
+                            confidence=st.session_state.get("results_ml_confidence", 0.0),
+                        )
+                        if "feedback_rows" not in st.session_state:
+                            st.session_state.feedback_rows = []
+                        st.session_state.feedback_rows.append(row)
+                    st.session_state.results_action_taken = None  # back to action list
+                    st.rerun()
+                if st.session_state.get("result_help"):
+                    msg = DID_THIS_HELP_SUGGESTIONS.get(st.session_state.result_help, "")
+                    if msg:
+                        st.caption(msg)
+            st.session_state.feedback_opt_in = st.checkbox(
+                "Help improve suggestions (anonymous)",
+                value=st.session_state.get("feedback_opt_in", False),
+                key="feedback_opt_in_cb",
+            )
+            if st.button("← Back to actions", key="back_to_actions"):
+                st.session_state.results_action_taken = None
+                st.rerun()
+        else:
+            # 6 action cards with "Start now"
+            for i, act in enumerate(ACTIONS):
+                with st.container():
+                    col_l, col_r = st.columns([3, 1])
+                    with col_l:
+                        st.markdown(f"**{act['emoji']} {act['label']}** — {act['short']}")
+                    with col_r:
+                        if st.button("Start now", key=f"action_{act['id']}", type="primary" if act["id"] == suggested_id else "secondary"):
+                            st.session_state.results_action_taken = act["id"]
+                            st.rerun()
+            st.session_state.feedback_opt_in = st.checkbox(
+                "Help improve suggestions (anonymous)",
+                value=st.session_state.get("feedback_opt_in", False),
+                key="feedback_opt_in_cb",
+            )
 
         # Optional next steps
         st.markdown("**Optional next steps**")
@@ -912,7 +1001,7 @@ elif st.session_state.step == "results":
             _score_line("Mood (PHQ-2)", phq2_score, phq2_answered, phq2_total),
             _score_line("Worry (GAD-2)", gad2_score, gad2_answered, gad2_total),
             "",
-            "Chosen action: " + display_action,
+            "Suggested action: " + (st.session_state.get("results_suggested_action") or "—"),
             "",
             "Next steps:",
         ]
@@ -927,6 +1016,18 @@ elif st.session_state.step == "results":
             mime="text/plain",
             key="dl_summary",
         )
+        # Export feedback for training (anonymous; only if any rows collected)
+        feedback_rows = st.session_state.get("feedback_rows") or []
+        if feedback_rows:
+            with st.expander("Export my feedback (for training)"):
+                st.caption("Download a CSV of your anonymous \"Did this help?\" responses. Use it to train a better coping recommender (see scripts/).")
+                st.download_button(
+                    "Download feedback as CSV",
+                    data=feedback_rows_to_csv(feedback_rows),
+                    file_name=f"calmcompass-feedback-{datetime.now().strftime('%Y%m%d-%H%M')}.csv",
+                    mime="text/csv",
+                    key="dl_feedback",
+                )
         if st.session_state.save_session:
             st.session_state.saved_summary = summary_text
 
@@ -1003,3 +1104,7 @@ elif st.session_state.step == "results":
                     del st.session_state[key]
             init_state()
             _go_to_step("intro")
+
+# ——— Chat widget (bottom of page, every screen) ———
+st.markdown("---")
+render_chat_widget()
