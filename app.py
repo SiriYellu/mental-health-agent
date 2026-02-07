@@ -63,12 +63,22 @@ from ui.components import (
     survey_progress,
     survey_encouragement,
 )
+from ui.butterfly_bg import butterfly_background
 from games.breathing import render_breathing_game
 from games.memory_match import render_memory_match
 from games.shell_game import render_shell_game
 
-# Feeling chips for Step 1 (map to context later)
-FEELING_CHIPS = ["Overwhelmed", "Anxious", "Low", "Stressed", "Numb", "Okay"]
+# Inner weather (Step 1): tiles + supportive line + context mapping
+WEATHER_TILES = [("☀", "Clear"), ("☁", "Cloudy"), ("🌬", "Windy"), ("🌫", "Foggy"), ("🌧", "Stormy")]
+WEATHER_SUPPORTIVE = {
+    "Clear": "Clear skies. We'll keep it light.",
+    "Cloudy": "Cloudy is okay. One step at a time.",
+    "Windy": "Windy days happen. We'll go step by step.",
+    "Foggy": "Foggy can feel heavy. We're here.",
+    "Stormy": "Stormy days happen. We'll do one step at a time.",
+}
+WEATHER_TO_CONTEXT = {"Clear": "Okay", "Cloudy": "Not sure", "Windy": "Stressed", "Foggy": "Not sure", "Stormy": "Overwhelmed"}
+
 # Display options with friendly emoji for game-like survey (same order as OPTIONS: 0–4)
 OPTIONS_DISPLAY = [
     "Not at all 🌱",
@@ -134,7 +144,9 @@ st.markdown("""
     .stApp, .block-container, [class*="cc-"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Inter, sans-serif;
     }
-    .block-container { position: relative; z-index: 1; max-width: 640px; padding: 2rem 1.5rem 2.5rem; margin: 0 auto; color: #e2e8f0; }
+    .block-container { position: relative; z-index: 2; max-width: 640px; padding: 2rem 1.5rem 2.5rem; margin: 0 auto; color: #e2e8f0; }
+    /* Butterfly background iframe: full viewport, behind all content (first iframe = our component) */
+    .stApp iframe:first-of-type { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; min-height: 100vh !important; z-index: 0 !important; pointer-events: none !important; }
     .stApp p, .stApp label, .stApp .stMarkdown { color: #e2e8f0; }
     .stApp h1, .stApp h2, .stApp h3 { color: #f1f5f9; }
 
@@ -364,6 +376,12 @@ def init_state():
         "step_times": {},
         "game_clicks": [],
         "patience_game_done": False,
+        "reset_style": None,
+        "support_now_breathing_done": False,
+        "need_most": None,
+        "result_help": None,
+        "inner_weather": None,
+        "results_60_done": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -371,6 +389,9 @@ def init_state():
 
 
 init_state()
+
+# Interactive butterfly background (fixed layer behind UI; cursor-attraction)
+butterfly_background(n=12, opacity=0.32, speed=1.0)
 
 
 def run_question_set(questions, key_prefix, answers_list, prefix_text=None):
@@ -456,12 +477,15 @@ if st.session_state.step == "intro":
         '<div class="cc-glass-card"><p style="margin:0; color:#e2e8f0;">Choose how you want to start.</p></div>'
     )
     motion_container("intro", intro_html, nonce)
+    with st.expander("What you'll get", expanded=False):
+        st.markdown("**Understanding** · **Action** · **Reassurance** · **Support**")
+        st.caption("One of each, tailored to your answers. Nothing stored unless you choose.")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("**2-Minute Check-In**", type="primary", use_container_width=True):
-            _go_to_step("feeling")
+        if st.button("**Start 2-Minute Check-In**", type="primary", use_container_width=True):
+            _go_to_step("inner_weather")
     with col2:
-        if st.button("**Support Now (60 seconds)**", type="secondary", use_container_width=True):
+        if st.button("**Support Now (60s Reset)**", type="secondary", use_container_width=True):
             _go_to_step("support_now")
     st.markdown(
         '<div class="cc-glass-card cc-disclaimer">Not medical advice. For reflection and when to reach out. If you\'re in crisis, use Support Now or call 988.</div>',
@@ -503,63 +527,108 @@ elif st.session_state.step == "memory_game":
 elif st.session_state.step == "shell_game":
     render_shell_game(return_step="intro")
 
-# ——— Support Now: full-screen feel, 60s timer, grounding, crisis panel ———
+# ——— Support Now: interactive flow (chips → plan → breathing → grounding → done) ———
 elif st.session_state.step == "support_now":
     nonce = st.session_state.get("render_nonce") or 0
-    support_html = (
+    motion_container(
+        "support_now",
         '<div class="cc-hero"><span class="cc-hero-icon">🫁</span><span class="cc-hero-title">Support Now</span></div>'
-        '<p class="cc-hero-tagline">You don\'t have to fix anything in the next few minutes. Try the steps below.</p>'
-        f'<div class="cc-glass-card"><p style="margin:0 0 0.5rem 0; font-weight:600; color:#e2e8f0;">{html.escape(SUPPORT_NOW_CALMING)}</p></div>'
+        '<p class="cc-hero-tagline">Choose your reset style. You\'ll get a tailored 60-second plan.</p>',
+        nonce, "cc-support-now",
     )
-    motion_container("support_now", support_html, nonce, "cc-support-now")
-    st.markdown("**60-second breathing** — Start the timer and follow 4-7-8: breathe in 4, hold 7, out 8.")
-    if st.button("Start 60-second breathing", type="primary", key="start_breath"):
-        breathing_timer_placeholder(60)
-    st.markdown(BREATHING_60_SEC)
+    st.markdown("**I need…**")
+    reset_cols = st.columns(4)
+    for i, choice in enumerate(RESET_STYLE_CHOICES):
+        with reset_cols[i]:
+            if st.button(choice, key=f"reset_style_{i}", use_container_width=True):
+                st.session_state.reset_style = choice
+                _go_to_step("support_now_plan")
     st.markdown("---")
-    st.markdown("**Grounding (5-4-3-2-1)** — Check off as you go:")
+    _crisis_html = _markdown_to_html_bold(get_crisis_message_immediate("us"))
+    st.markdown(f'<div class="cc-crisis-panel">{_crisis_html}</div>', unsafe_allow_html=True)
+    if st.button("← Back to home", key="support_back"):
+        _go_to_step("intro")
+
+elif st.session_state.step == "support_now_plan":
+    style = st.session_state.get("reset_style") or "Calm"
+    script = RESET_STYLE_SCRIPTS.get(style, RESET_STYLE_SCRIPTS["Calm"])
+    st.markdown("### 60 seconds. Follow along.")
+    glass_card(f'<p style="margin:0; color:#e2e8f0;">{html.escape(script)}</p>', "")
+    st.caption("Breathe in 4 · Hold 7 · Breathe out 8. Repeat 3–4 times.")
+    if st.button("Start 60-second reset", type="primary", key="support_start_breath"):
+        _go_to_step("support_now_breathing")
+    if st.button("← Back", key="support_plan_back"):
+        _go_to_step("support_now")
+
+elif st.session_state.step == "support_now_breathing":
+    st.markdown("### Live breathing")
+    breathing_timer_placeholder(60)
+    st.success("Great job.")
+    if st.button("Continue to grounding", type="primary", key="support_to_grounding"):
+        _go_to_step("support_now_grounding")
+    if st.button("← Back to home", key="support_breath_back"):
+        _go_to_step("intro")
+
+elif st.session_state.step == "support_now_grounding":
+    st.markdown("### Grounding (5-4-3-2-1)")
+    st.caption("Check off as you go. Brings you into the present.")
     glass_card(
         _markdown_to_html_bold(GROUNDING_SCRIPT).replace("  ", " &nbsp; "),
         "",
     )
-    grounding_checkboxes()
+    checks = grounding_checkboxes()
+    done_count = sum(1 for v in checks.values() if v)
+    pct = round((done_count / 5) * 100) if checks else 0
+    st.markdown(
+        f'<div class="cc-survey-progress" style="--cc-survey-pct:{pct};">'
+        '<div class="cc-survey-progress-bar"><div class="cc-survey-progress-fill"></div></div>'
+        f'<div class="cc-survey-progress-label">{done_count} of 5 steps</div></div>',
+        unsafe_allow_html=True,
+    )
+    if done_count == 5:
+        st.success("You completed a reset ✅")
     st.markdown("---")
-    st.markdown("**If things feel too heavy**")
+    st.markdown("**Support options (always here)**")
     _crisis_html = _markdown_to_html_bold(get_crisis_message_immediate("us"))
     st.markdown(f'<div class="cc-crisis-panel">{_crisis_html}</div>', unsafe_allow_html=True)
-    st.caption("This is not a substitute for professional care.")
-    if st.button("← Back to home", key="support_back"):
+    if st.button("← Back to home", key="support_grounding_back"):
         _go_to_step("intro")
 
-# ——— Game-like survey: one question per screen (Steps 1–6) ———
-elif st.session_state.step == "feeling":
+# ——— Game-like survey: inner weather (Step 1) then one question per screen (Steps 2–6) ———
+elif st.session_state.step == "inner_weather":
     nonce = st.session_state.get("render_nonce") or 0
-    survey_progress(1, SURVEY_TOTAL_STEPS, "How are you feeling right now?")
-    motion_container("feeling", f'<p class="cc-survey-cheer">{survey_encouragement(1, SURVEY_TOTAL_STEPS)}</p>', nonce)
-    chosen = st.radio(
-        "Choose one",
-        FEELING_CHIPS,
-        key="feeling_chip_radio",
-        format_func=lambda x: x,
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-    st.session_state.feeling_chip = chosen
-    if chosen:
-        ctx = st.session_state.context
-        ctx["feeling_today"] = FEELING_TO_CONTEXT.get(chosen, chosen)
-        st.session_state.context = ctx
+    survey_progress(1, SURVEY_TOTAL_STEPS, "Pick your inner weather")
+    motion_container("inner_weather", '<p class="cc-survey-cheer">Pick what fits. No wrong answers.</p>', nonce)
+    chosen_weather = st.session_state.get("inner_weather")
+    cols = st.columns(5)
+    for i, (emoji, label) in enumerate(WEATHER_TILES):
+        with cols[i]:
+            if st.button(f"{emoji} {label}", key=f"weather_{i}", use_container_width=True):
+                st.session_state.inner_weather = label
+                ctx = st.session_state.context
+                ctx["feeling_today"] = WEATHER_TO_CONTEXT.get(label, "Not sure")
+                st.session_state.context = ctx
+                _go_to_step("mood_0")
+    if chosen_weather:
+        supportive = WEATHER_SUPPORTIVE.get(chosen_weather, "We'll do one step at a time.")
+        st.info(supportive)
     col_b, col_n = st.columns([1, 2])
     with col_b:
-        if st.button("← Back", key="feeling_back"):
+        if st.button("← Back", key="weather_back"):
             _go_to_step("intro")
     with col_n:
-        if st.button("Next →", key="feeling_next"):
+        if st.button("Next →", key="weather_next"):
+            if not st.session_state.get("inner_weather"):
+                st.session_state.inner_weather = "Clear"
+                ctx = st.session_state.context
+                ctx["feeling_today"] = WEATHER_TO_CONTEXT.get("Clear", "Okay")
+                st.session_state.context = ctx
             _go_to_step("mood_0")
 
 elif st.session_state.step == "mood_0":
     survey_progress(2, SURVEY_TOTAL_STEPS, "About your mood (last 2 weeks)")
-    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(2, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    left = SURVEY_TOTAL_STEPS - 2
+    st.markdown(f'<p class="cc-survey-cheer">Thanks. {left} questions left.</p>', unsafe_allow_html=True)
     phq2 = st.session_state.phq2
     default = phq2[0] if len(phq2) >= 1 else 0
     default = min(default, len(OPTIONS) - 1)
@@ -575,7 +644,7 @@ elif st.session_state.step == "mood_0":
     col_b, col_n = st.columns([1, 2])
     with col_b:
         if st.button("← Back", key="mood0_back"):
-            _go_to_step("feeling")
+            _go_to_step("inner_weather")
     with col_n:
         if st.button("Next →", key="mood_0_next"):
             _go_to_step("mood_1")
@@ -605,7 +674,7 @@ elif st.session_state.step == "mood_1":
 
 elif st.session_state.step == "worry_0":
     survey_progress(4, SURVEY_TOTAL_STEPS, "About worry (last 2 weeks)")
-    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(4, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="cc-survey-cheer">Thanks. {SURVEY_TOTAL_STEPS - 4} questions left.</p>', unsafe_allow_html=True)
     gad2 = st.session_state.gad2
     default = gad2[0] if len(gad2) >= 1 else 0
     default = min(default, len(OPTIONS) - 1)
@@ -628,7 +697,7 @@ elif st.session_state.step == "worry_0":
 
 elif st.session_state.step == "worry_1":
     survey_progress(5, SURVEY_TOTAL_STEPS, "One more about worry")
-    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(5, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="cc-survey-cheer">Thanks. Almost there — 1 question left.</p>', unsafe_allow_html=True)
     gad2 = st.session_state.gad2
     default = gad2[1] if len(gad2) > 1 else 0
     default = min(default, len(OPTIONS) - 1)
@@ -651,7 +720,7 @@ elif st.session_state.step == "worry_1":
 
 elif st.session_state.step == "safety":
     survey_progress(6, SURVEY_TOTAL_STEPS, "Last step — your answer is private")
-    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(6, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    st.markdown('<p class="cc-survey-cheer">Last step. Your answer stays private.</p>', unsafe_allow_html=True)
     st.session_state.self_harm = st.radio(
         SELF_HARM_QUESTION,
         SELF_HARM_CHOICES,
@@ -770,11 +839,23 @@ elif st.session_state.step == "results":
                 parts.append(f"Worry: based on {gad2_answered}/{gad2_total} answers")
             st.caption(" · ".join(parts))
 
-        # Calm meter (never diagnostic)
+        # R1) Calm meter (visual feedback — "How much you've been carrying")
         calm_meter(phq2_score, gad2_score)
 
-        # Result Panel: 4 outputs in card layout
-        u, a, r, s = html.escape(display_understanding), html.escape(display_action), html.escape(suggestion["reassurance"]), html.escape(suggestion["support"])
+        # R2) Choose what you need most (1 tap personalization) — updates One Action
+        st.markdown("**Right now I need…**")
+        need_cols = st.columns(len(NEED_MOST_OPTIONS))
+        for i, opt in enumerate(NEED_MOST_OPTIONS):
+            with need_cols[i]:
+                if st.button(opt, key=f"need_most_{i}", use_container_width=True):
+                    st.session_state.need_most = opt
+                    st.rerun()
+        if st.session_state.get("need_most"):
+            st.caption(f"Showing action for **{st.session_state.need_most}**.")
+
+        # Result Panel: 4 outputs (One Action can be overridden by need_most)
+        action_text = get_action_for_need(st.session_state.need_most) if st.session_state.get("need_most") else display_action
+        u, a, r, s = html.escape(display_understanding), html.escape(action_text), html.escape(suggestion["reassurance"]), html.escape(suggestion["support"])
         understanding_html = (
             f'<div class="cc-card-section">'
             f'<span class="cc-card-icon">💬</span><div class="cc-card-section-inner">'
@@ -801,9 +882,21 @@ elif st.session_state.step == "results":
         )
         glass_card(understanding_html + action_html + reassurance_html + support_html, "")
 
-        # Start 60-second reset button
+        # R3) Do the action inside the app (live timer → completion "Done ✅")
         if st.button("Start 60-second reset", type="primary", key="reset_60"):
+            st.session_state.results_60_done = True
             breathing_timer_placeholder(60)
+            st.rerun()
+        if st.session_state.get("results_60_done"):
+            st.success("Done ✅")
+            st.markdown("**Did this help?**")
+            help_choice = st.radio("", ["Yes", "A little", "Not really"], key="result_help_radio", label_visibility="collapsed", horizontal=True)
+            if help_choice:
+                st.session_state.result_help = "yes" if help_choice == "Yes" else ("a_little" if help_choice == "A little" else "not_really")
+            if st.session_state.get("result_help"):
+                msg = DID_THIS_HELP_SUGGESTIONS.get(st.session_state.result_help, "")
+                if msg:
+                    st.caption(msg)
 
         # Optional next steps
         st.markdown("**Optional next steps**")

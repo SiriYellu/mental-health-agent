@@ -25,6 +25,26 @@ WHAT_DO_I_NEED_ACTIONS = {
     "Vent": "Say it out loud to an empty room, or write it in a note you don’t have to send. Getting it out can create a little space.",
     "Motivation": "One tiny step: stand up, get a glass of water, or step outside for 1 minute. You don’t have to do more than that.",
     "Calm": "Try 4-7-8 breathing: in 4, hold 7, out 8. Do it 3–4 times. Or name 5 things you can see—it can ground you in the present.",
+    "Connection": "Reach out to one person—even a short text. \"I've been having a tough week\" is enough. You don't have to explain everything.",
+}
+
+NEED_MOST_OPTIONS = ["Calm", "Clarity", "Motivation", "Connection", "Rest"]
+
+def get_action_for_need(need: str) -> str:
+    return WHAT_DO_I_NEED_ACTIONS.get(need, WHAT_DO_I_NEED_ACTIONS["Calm"])
+
+RESET_STYLE_SCRIPTS = {
+    "Calm": "Focus on your breath. We'll do 60 seconds of 4-7-8: breathe in 4, hold 7, breathe out 8. No rush.",
+    "Grounding": "We'll guide you through 5-4-3-2-1: things you see, feel, hear, smell, and one thing you're okay about. Brings you into the present.",
+    "Slow thoughts": "Your mind might be racing. We'll slow it down with breathing first, then a short grounding. One step at a time.",
+    "Sleepy reset": "A gentle wind-down: slow breathing and a quick grounding. Helps shift from \"on\" to rest.",
+}
+RESET_STYLE_CHOICES = ["Calm", "Grounding", "Slow thoughts", "Sleepy reset"]
+
+DID_THIS_HELP_SUGGESTIONS = {
+    "yes": "Glad it helped. You can come back anytime for another reset or check-in.",
+    "a_little": "Every bit counts. Try one more small step today, or come back when you need.",
+    "not_really": "That's okay. Sometimes different things work on different days. 988 and Crisis Text Line (741741) are there 24/7 if you want to talk.",
 }
 
 # —— Intervention map: state (from feeling_today / severity) → primary support type ——
