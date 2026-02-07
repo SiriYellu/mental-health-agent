@@ -244,7 +244,7 @@ st.markdown("""
     .cc-hero { display: flex; align-items: center; gap: 0.875rem; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
     .cc-hero-icon { font-size: 2.25rem; line-height: 1; }
     .cc-hero-title { font-size: 1.875rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.035em; }
-    .cc-hero-tagline { color: #94a3b8; font-size: 1.0625rem; margin-bottom: 1.5rem; line-height: 1.45; font-weight: 400; }
+    .cc-hero-tagline { color: #cbd5e1; font-size: 1.0625rem; margin-bottom: 1.5rem; line-height: 1.5; font-weight: 400; }
     h1, h2, h3 { font-family: inherit; letter-spacing: -0.02em; }
     .block-container > * { margin-bottom: 0.75rem; }
 
@@ -343,7 +343,7 @@ st.markdown("""
     .cc-crisis-panel { background: rgba(220,53,69,0.12); border: 2px solid rgba(220,53,69,0.4); border-radius: 16px; padding: 1.25rem; margin: 1rem 0; color: #f1f5f9; }
     .cc-crisis-panel a { color: #f87171; font-weight: 600; }
     .cc-crisis-line { font-size: 1.1rem; font-weight: 600; margin: 0.5rem 0; }
-    .cc-disclaimer { font-size: 0.85rem; color: #94a3b8; margin-top: 1rem; }
+    .cc-disclaimer { font-size: 0.9rem; color: #cbd5e1; margin-top: 1rem; line-height: 1.5; }
 
     /* ----- Game-like survey: progress bar + step label ----- */
     .cc-survey-progress { margin-bottom: 1.25rem; }
@@ -375,8 +375,8 @@ st.markdown("""
     /* ----- Section spacing & hierarchy ----- */
     .cc-section { margin: 1.75rem 0; }
     .cc-section:first-child { margin-top: 0; }
-    .cc-section-title { font-size: 1rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.02em; margin-bottom: 0.75rem; text-transform: uppercase; }
-    .cc-subtitle { font-size: 0.9375rem; color: #94a3b8; margin-bottom: 1rem; line-height: 1.5; }
+    .cc-section-title { font-size: 1rem; font-weight: 600; color: #cbd5e1; letter-spacing: 0.02em; margin-bottom: 0.75rem; text-transform: uppercase; }
+    .cc-subtitle { font-size: 0.9375rem; color: #cbd5e1; margin-bottom: 1rem; line-height: 1.5; }
 
     /* ----- Action cards grid (2 rows x 3) ----- */
     .cc-action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
@@ -405,6 +405,7 @@ st.markdown("""
     .cc-intro-cta { display: flex; gap: 1rem; margin: 1.25rem 0; flex-wrap: wrap; }
     .cc-intro-cta .stButton { flex: 1; min-width: 140px; }
     .cc-intro-cta .stButton > button { width: 100%; justify-content: center; }
+    .cc-intro-card { margin-bottom: 1rem; }
 
     /* ----- Chat pop-up: floating card (bottom-right), open on first visit ----- */
     .cc-chat-popup-anchor { display: block; height: 0; margin: 0; padding: 0; overflow: hidden; }
@@ -559,15 +560,17 @@ def _render_how_you_moved() -> None:
     glass_card(f'<p class="cc-survey-cheer" style="margin:0;"><strong>How you moved</strong><br>{body}</p>', "cc-how-you-moved")
 
 
-# ——— Landing: hero + two buttons ———
+# ——— Landing: hero + main actions + games in one place ———
 if st.session_state.step == "intro":
     nonce = st.session_state.get("render_nonce") or 0
     intro_html = (
+        '<div class="cc-intro-card">'
         '<div class="cc-hero">'
         '<span class="cc-hero-icon" aria-hidden="true">🧭</span>'
         '<span class="cc-hero-title">CalmCompass</span></div>'
         '<p class="cc-hero-tagline">A short, gentle check-in — one question at a time. Like a quick game. Nothing stored unless you choose.</p>'
         '<div class="cc-glass-card"><p style="margin:0; color:#e2e8f0;">Choose how you want to start.</p></div>'
+        '</div>'
     )
     motion_container("intro", intro_html, nonce)
     with st.expander("What you'll get", expanded=False):
@@ -580,6 +583,25 @@ if st.session_state.step == "intro":
     with col2:
         if st.button("**Support Now (60s Reset)**", type="secondary", use_container_width=True):
             _go_to_step("support_now")
+    st.markdown("---")
+    with st.expander("🎮 **Games** — focus & mental reset", expanded=False):
+        st.caption("Quick focus tools. No data collected. Pick one:")
+        g1, g2, g3 = st.columns(3)
+        with g1:
+            if st.button("🫁 Breathe", key="reset_breathe", use_container_width=True):
+                _go_to_step("breathing_game")
+            if st.button("🥚 Find the Egg", key="reset_shell", use_container_width=True):
+                _go_to_step("shell_game")
+        with g2:
+            if st.button("🧠 Memory Match", key="reset_memory", use_container_width=True):
+                _go_to_step("memory_game")
+            st.link_button("🧩 2048", "https://play2048.co/", use_container_width=True)
+        with g3:
+            st.link_button("♟️ Tic-Tac-Toe", "https://tictactoe.js.org/", use_container_width=True)
+            st.link_button("🧮 Sudoku", "https://sudoku-js.github.io/", use_container_width=True)
+            st.link_button("🧠 Memory (external)", "https://games-js.github.io/memory-game/", use_container_width=True)
+        st.caption("_For focus and mental reset only. No data is collected from these games._")
+    st.markdown("---")
     st.markdown(
         '<div class="cc-glass-card cc-disclaimer">Not medical advice. For reflection and when to reach out. If you\'re in crisis, use Support Now or call 988.</div>',
         unsafe_allow_html=True,
@@ -591,27 +613,6 @@ if st.session_state.step == "intro":
             st.session_state.saved_summary = None
             st.session_state.save_session = False
             st.rerun()
-    st.markdown('<div class="cc-section"><p class="cc-section-title">🧩 Mental Reset Games</p><p class="cc-subtitle">Quick focus tools — not tests. Pick one:</p></div>', unsafe_allow_html=True)
-    reset_cols = st.columns(4)
-    with reset_cols[0]:
-        if st.button("🫁 Breathe", key="reset_breathe"):
-            _go_to_step("breathing_game")
-    with reset_cols[1]:
-        if st.button("🥚 Find the Egg", key="reset_shell"):
-            _go_to_step("shell_game")
-    with reset_cols[2]:
-        if st.button("🧠 Memory Match", key="reset_memory"):
-            _go_to_step("memory_game")
-    with reset_cols[3]:
-        st.link_button("🧩 2048", "https://play2048.co/", use_container_width=True)
-    ext_cols = st.columns(3)
-    with ext_cols[0]:
-        st.link_button("♟️ Tic-Tac-Toe", "https://tictactoe.js.org/", use_container_width=True)
-    with ext_cols[1]:
-        st.link_button("🧠 Memory (external)", "https://games-js.github.io/memory-game/", use_container_width=True)
-    with ext_cols[2]:
-        st.link_button("🧮 Sudoku", "https://sudoku-js.github.io/", use_container_width=True)
-    st.caption("_For focus and mental reset. No data is collected from these games._")
 
 # ——— Calm Breathing Game (animated circle, 60s, “Did that help?”) ———
 elif st.session_state.step == "breathing_game":
