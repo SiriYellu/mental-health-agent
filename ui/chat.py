@@ -112,7 +112,7 @@ def render_chat_widget(*, expanded_on_first_visit: bool = True, floating: bool =
             unsafe_allow_html=True,
         )
 
-    with st.expander("💬 **Chat with me** — I'm here to listen", expanded=expanded, key="cc_chat_expander"):
+    with st.expander("💬 **Chat with me** — I'm here to listen", expanded=expanded):
         st.markdown(
             '<p class="cc-chat-intro">Ask how you are, how your day was — I\'ll answer sweetly. Nothing is stored.</p>',
             unsafe_allow_html=True,

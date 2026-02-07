@@ -599,8 +599,15 @@ if st.session_state.step == "intro":
         if st.button("🧠 Memory Match", key="reset_memory"):
             _go_to_step("memory_game")
     with reset_cols[3]:
-        st.button("🌤 More coming", key="reset_more_btn", disabled=True)
-    st.caption("_More games coming: Focus Grid, Spot the Change, Tic-Tac-Toe._")
+        st.link_button("🧩 2048", "https://play2048.co/", use_container_width=True)
+    ext_cols = st.columns(3)
+    with ext_cols[0]:
+        st.link_button("♟️ Tic-Tac-Toe", "https://tictactoe.js.org/", use_container_width=True)
+    with ext_cols[1]:
+        st.link_button("🧠 Memory (external)", "https://games-js.github.io/memory-game/", use_container_width=True)
+    with ext_cols[2]:
+        st.link_button("🧮 Sudoku", "https://sudoku-js.github.io/", use_container_width=True)
+    st.caption("_For focus and mental reset. No data is collected from these games._")
 
 # ——— Calm Breathing Game (animated circle, 60s, “Did that help?”) ———
 elif st.session_state.step == "breathing_game":
