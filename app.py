@@ -1107,4 +1107,5 @@ elif st.session_state.step == "results":
 
 # ——— Chat widget (bottom of page, every screen) ———
 st.markdown("---")
-render_chat_widget()
+if render_chat_widget is not None:
+    render_chat_widget()

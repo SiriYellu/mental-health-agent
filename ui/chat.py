@@ -115,16 +115,11 @@ def render_chat_widget() -> None:
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
         # Input
-        if prompt := st.chat_input("Say something..."):
+        prompt = st.chat_input("Say something...")
+        if prompt:
             messages.append({"role": "user", "content": prompt})
             reply = get_bot_response(prompt, messages)
             messages.append({"role": "assistant", "content": reply})
             st.rerun()
 
-    # When history is empty, the welcome is shown above; after first user message we show full history including welcome. So we need to add welcome as first message when they first open and send nothing yet - or add welcome to messages when empty so it displays in the loop. Simpler: when messages is empty, show welcome in the loop by treating it as one assistant message for display only. So we display: [welcome] + messages. So:
-    # for display: if not messages: show welcome. else: for m in messages: show m.
-    # But then when they type, we add user + assistant. So messages will have 2 items. We never added welcome to messages. So the welcome only shows when messages is empty. Good.
-</think>
-Fixing the chat so the welcome message displays correctly and the first exchange is preserved.
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-StrReplace
+    # When history is empty, the welcome is shown above; after first user message we show full history including welcome.
