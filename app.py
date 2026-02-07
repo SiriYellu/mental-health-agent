@@ -365,6 +365,40 @@ st.markdown("""
     .cc-survey-question { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 1rem; line-height: 1.4; }
     .cc-survey-cheer { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 1rem; }
     .cc-how-you-moved { border-left: 4px solid var(--cc-accent-soft); }
+
+    /* ----- Section spacing & hierarchy ----- */
+    .cc-section { margin: 1.75rem 0; }
+    .cc-section:first-child { margin-top: 0; }
+    .cc-section-title { font-size: 1rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.02em; margin-bottom: 0.75rem; text-transform: uppercase; }
+    .cc-subtitle { font-size: 0.9375rem; color: #94a3b8; margin-bottom: 1rem; line-height: 1.5; }
+
+    /* ----- Action cards grid (2 rows x 3) ----- */
+    .cc-action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+    @media (max-width: 640px) { .cc-action-grid { grid-template-columns: 1fr; } }
+    .cc-action-card {
+        background: rgba(30,41,59,0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border-radius: 18px; padding: 1.25rem; border: 1px solid rgba(27,94,74,0.1);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+    }
+    .cc-action-card:hover { transform: translateY(-2px); border-color: rgba(27,94,74,0.2); box-shadow: 0 8px 28px rgba(0,0,0,0.08); }
+    .cc-action-card.suggested { border-color: rgba(45,122,99,0.35); box-shadow: 0 0 0 1px rgba(45,122,99,0.2); }
+    .cc-action-card-emoji { font-size: 1.75rem; margin-bottom: 0.35rem; }
+    .cc-action-card-label { font-weight: 600; color: #f1f5f9; font-size: 1rem; margin-bottom: 0.25rem; }
+    .cc-action-card-short { font-size: 0.875rem; color: #94a3b8; line-height: 1.4; }
+
+    /* ----- "Did this help?" block ----- */
+    .cc-did-this-help { background: rgba(30,41,59,0.6); backdrop-filter: blur(12px); border-radius: 18px; padding: 1.25rem; margin: 1.25rem 0; border: 1px solid rgba(27,94,74,0.08); }
+
+    /* ----- Form controls: inputs, checkboxes ----- */
+    .stTextInput > div > div input { border-radius: 12px !important; border: 1px solid rgba(27,94,74,0.2) !important; }
+    .block-container [data-testid="stCheckbox"] > label { border-radius: 12px; padding: 0.5rem 0; color: #e2e8f0 !important; }
+    .block-container .stExpander { border-radius: 16px; border: 1px solid rgba(27,94,74,0.1); overflow: hidden; }
+    .block-container .stExpander summary { border-radius: 16px; padding: 0.75rem 1rem !important; }
+
+    /* ----- Intro CTA buttons: equal height, clear hierarchy ----- */
+    .cc-intro-cta { display: flex; gap: 1rem; margin: 1.25rem 0; flex-wrap: wrap; }
+    .cc-intro-cta .stButton { flex: 1; min-width: 140px; }
+    .cc-intro-cta .stButton > button { width: 100%; justify-content: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -402,6 +436,9 @@ def init_state():
         "results_ml_used": False,
         "results_ml_confidence": 0.0,
         "results_action_taken": None,
+        "results_action_started_at": None,
+        "results_action_completed": False,
+        "results_action_ended_at": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -518,9 +555,7 @@ if st.session_state.step == "intro":
             st.session_state.saved_summary = None
             st.session_state.save_session = False
             st.rerun()
-    st.markdown("---")
-    st.markdown("**🧩 Mental Reset Games**")
-    st.caption("Quick focus tools — not tests. Pick one:")
+    st.markdown('<div class="cc-section"><p class="cc-section-title">🧩 Mental Reset Games</p><p class="cc-subtitle">Quick focus tools — not tests. Pick one:</p></div>', unsafe_allow_html=True)
     reset_cols = st.columns(4)
     with reset_cols[0]:
         if st.button("🫁 Breathe", key="reset_breathe"):
@@ -556,7 +591,7 @@ elif st.session_state.step == "support_now":
         '<p class="cc-hero-tagline">Choose your reset style. You\'ll get a tailored 60-second plan.</p>',
         nonce, "cc-support-now",
     )
-    st.markdown("**I need…**")
+    st.markdown('<p class="cc-section-title">I need…</p>', unsafe_allow_html=True)
     reset_cols = st.columns(4)
     for i, choice in enumerate(RESET_STYLE_CHOICES):
         with reset_cols[i]:
@@ -572,7 +607,7 @@ elif st.session_state.step == "support_now":
 elif st.session_state.step == "support_now_plan":
     style = st.session_state.get("reset_style") or "Calm"
     script = RESET_STYLE_SCRIPTS.get(style, RESET_STYLE_SCRIPTS["Calm"])
-    st.markdown("### 60 seconds. Follow along.")
+    st.markdown('<p class="cc-section-title">60 seconds · Follow along</p>', unsafe_allow_html=True)
     glass_card(f'<p style="margin:0; color:#e2e8f0;">{html.escape(script)}</p>', "")
     st.caption("Breathe in 4 · Hold 7 · Breathe out 8. Repeat 3–4 times.")
     if st.button("Start 60-second reset", type="primary", key="support_start_breath"):
@@ -608,7 +643,7 @@ elif st.session_state.step == "support_now_grounding":
     if done_count == 5:
         st.success("You completed a reset ✅")
     st.markdown("---")
-    st.markdown("**Support options (always here)**")
+    st.markdown('<p class="cc-section-title">Support options (always here)</p>', unsafe_allow_html=True)
     _crisis_html = _markdown_to_html_bold(get_crisis_message_immediate("us"))
     st.markdown(f'<div class="cc-crisis-panel">{_crisis_html}</div>', unsafe_allow_html=True)
     if st.button("← Back to home", key="support_grounding_back"):
@@ -840,7 +875,7 @@ elif st.session_state.step == "results":
 
         # Results screen motion (fade + slide up)
         nonce = st.session_state.get("render_nonce") or 0
-        motion_container("results", '<h3>Here\'s what might help</h3>', nonce)
+        motion_container("results", '<h3 style="margin-bottom: 0.5rem;">Here\'s what might help</h3><p class="cc-subtitle" style="margin-top: 0;">Your reflection and a few actions to try.</p>', nonce)
         # How you moved: clicks, time per step, patience game (gentle reflection only)
         _render_how_you_moved()
         if suggestion.get("partial_note"):
@@ -903,64 +938,108 @@ elif st.session_state.step == "results":
 
         suggested_id = st.session_state.results_suggested_action
         suggested_info = get_action_by_id(suggested_id) or ACTIONS[0]
-        st.markdown(f"**Try an action — suggested for you: {suggested_info['emoji']} {suggested_info['label']}**")
+        st.markdown('<p class="cc-section-title">Try an action</p>', unsafe_allow_html=True)
+        st.markdown(
+            f'<p class="cc-subtitle">Suggested for you: <strong>{html.escape(suggested_info["emoji"])} {html.escape(suggested_info["label"])}</strong>. '
+            'Pick any and click <strong>Start now</strong>, then tell us if it helped.</p>',
+            unsafe_allow_html=True,
+        )
         if st.session_state.get("results_ml_used"):
             st.caption("Personalization model active.")
-        st.markdown("Pick any and click **Start now**. Then tell us if it helped.")
 
         # In-flow: user clicked "Start now" on an action — show that action then "Did this help?"
         action_taken = st.session_state.get("results_action_taken")
         if action_taken:
+            # Record start time on first entry
+            if st.session_state.get("results_action_started_at") is None:
+                st.session_state.results_action_started_at = time.time()
+
             act = get_action_by_id(action_taken)
             if act:
                 st.markdown(f"**You chose: {act['emoji']} {act['label']}**")
+                completed = st.session_state.get("results_action_completed", False)
+                timer_actions = ("breathing_60s", "tiny_task", "short_walk")
+
                 if action_taken == "breathing_60s":
                     breathing_timer_placeholder(60)
-                elif action_taken == "grounding_54321":
-                    glass_card(_markdown_to_html_bold(GROUNDING_SCRIPT).replace("  ", " &nbsp; "), "")
-                    grounding_checkboxes()
-                elif action_taken == "reframe_prompt":
-                    st.markdown("What's one small step that would help right now? (Write or say it.)")
-                    st.text_input("Optional: type it here", key="reframe_input", label_visibility="collapsed")
+                    st.session_state.results_action_completed = True
+                    st.session_state.results_action_ended_at = time.time()
                 elif action_taken == "tiny_task":
                     st.markdown("Pick one small thing (e.g. clear the desk, fill water) and do it for 2 minutes.")
-                    breathing_timer_placeholder(120)  # 2 min
+                    breathing_timer_placeholder(120)
+                    st.session_state.results_action_completed = True
+                    st.session_state.results_action_ended_at = time.time()
                 elif action_taken == "short_walk":
                     st.markdown("Step outside or walk around the room for 2 minutes.")
                     breathing_timer_placeholder(120)
+                    st.session_state.results_action_completed = True
+                    st.session_state.results_action_ended_at = time.time()
+                elif action_taken == "grounding_54321":
+                    glass_card(_markdown_to_html_bold(GROUNDING_SCRIPT).replace("  ", " &nbsp; "), "")
+                    grounding_checkboxes()
+                    if not completed and st.button("Done", key="grounding_done"):
+                        st.session_state.results_action_completed = True
+                        st.session_state.results_action_ended_at = time.time()
+                        st.rerun()
+                elif action_taken == "reframe_prompt":
+                    st.markdown("What's one small step that would help right now? (Write or say it.)")
+                    st.text_input("Optional: type it here", key="reframe_input", label_visibility="collapsed")
+                    if not completed and st.button("Done", key="reframe_done"):
+                        st.session_state.results_action_completed = True
+                        st.session_state.results_action_ended_at = time.time()
+                        st.rerun()
                 elif action_taken == "reach_out":
                     st.caption("Copy this message to send to someone you trust:")
                     st.code(get_talk_draft(), language=None)
+                    if not completed and st.button("I copied it", key="reach_out_done"):
+                        st.session_state.results_action_completed = True
+                        st.session_state.results_action_ended_at = time.time()
+                        st.rerun()
 
-                st.success("Done ✅")
-                st.markdown("**Did this help?**")
-                help_choice = st.radio("", ["Yes", "A little", "Not really"], key="result_help_radio", label_visibility="collapsed", horizontal=True)
-                if help_choice:
-                    st.session_state.result_help = "yes" if help_choice == "Yes" else ("a_little" if help_choice == "A little" else "not_really")
-                    if st.session_state.get("feedback_opt_in"):
-                        _ctx = st.session_state.get("context") or {}
-                        row = build_feedback_row(
-                            phq2_score=phq2_score,
-                            gad2_score=gad2_score,
-                            feeling_today=_ctx.get("feeling_today"),
-                            workload_stress=_ctx.get("workload_stress"),
-                            need_most=None,
-                            text_emotion_label=st.session_state.get("text_emotion_label"),
-                            action_suggested=st.session_state.results_suggested_action or "",
-                            action_taken=action_taken,
-                            result_help=st.session_state.result_help,
-                            ml_used=st.session_state.get("results_ml_used", False),
-                            confidence=st.session_state.get("results_ml_confidence", 0.0),
-                        )
-                        if "feedback_rows" not in st.session_state:
-                            st.session_state.feedback_rows = []
-                        st.session_state.feedback_rows.append(row)
-                    st.session_state.results_action_taken = None  # back to action list
-                    st.rerun()
-                if st.session_state.get("result_help"):
-                    msg = DID_THIS_HELP_SUGGESTIONS.get(st.session_state.result_help, "")
-                    if msg:
-                        st.caption(msg)
+                # Show "Did this help?" when action is completed (timer ran or Done clicked)
+                completed = st.session_state.get("results_action_completed", False)
+                if completed or action_taken in timer_actions:
+                    st.success("Done ✅")
+                    st.markdown(
+                        '<div class="cc-did-this-help"><p style="margin:0 0 0.75rem 0; font-weight: 600; color: #f1f5f9;">Did this help?</p></div>',
+                        unsafe_allow_html=True,
+                    )
+                    help_choice = st.radio("", ["Yes", "A little", "Not really"], key="result_help_radio", label_visibility="collapsed", horizontal=True)
+                    if help_choice:
+                        st.session_state.result_help = "yes" if help_choice == "Yes" else ("a_little" if help_choice == "A little" else "not_really")
+                        if st.session_state.get("feedback_opt_in"):
+                            _ctx = st.session_state.get("context") or {}
+                            _start = st.session_state.get("results_action_started_at") or 0
+                            _end = st.session_state.get("results_action_ended_at") or _start
+                            _time_spent = int(_end - _start) if _start and _end else 0
+                            row = build_feedback_row(
+                                phq2_score=phq2_score,
+                                gad2_score=gad2_score,
+                                feeling_today=_ctx.get("feeling_today"),
+                                workload_stress=_ctx.get("workload_stress"),
+                                need_most=None,
+                                text_emotion_label=st.session_state.get("text_emotion_label"),
+                                action_suggested=st.session_state.results_suggested_action or "",
+                                action_taken=action_taken,
+                                action_completed=st.session_state.get("results_action_completed", False),
+                                time_spent_seconds=_time_spent,
+                                result_help=st.session_state.result_help,
+                                ml_used=st.session_state.get("results_ml_used", False),
+                                confidence=st.session_state.get("results_ml_confidence", 0.0),
+                            )
+                            if "feedback_rows" not in st.session_state:
+                                st.session_state.feedback_rows = []
+                            st.session_state.feedback_rows.append(row)
+                        # Clear action state for next time
+                        st.session_state.results_action_taken = None
+                        st.session_state.results_action_started_at = None
+                        st.session_state.results_action_completed = False
+                        st.session_state.results_action_ended_at = None
+                        st.rerun()
+                    if st.session_state.get("result_help"):
+                        msg = DID_THIS_HELP_SUGGESTIONS.get(st.session_state.result_help, "")
+                        if msg:
+                            st.caption(msg)
             st.session_state.feedback_opt_in = st.checkbox(
                 "Help improve suggestions (anonymous)",
                 value=st.session_state.get("feedback_opt_in", False),
@@ -968,16 +1047,29 @@ elif st.session_state.step == "results":
             )
             if st.button("← Back to actions", key="back_to_actions"):
                 st.session_state.results_action_taken = None
+                st.session_state.results_action_started_at = None
+                st.session_state.results_action_completed = False
+                st.session_state.results_action_ended_at = None
                 st.rerun()
         else:
-            # 6 action cards with "Start now"
-            for i, act in enumerate(ACTIONS):
-                with st.container():
-                    col_l, col_r = st.columns([3, 1])
-                    with col_l:
-                        st.markdown(f"**{act['emoji']} {act['label']}** — {act['short']}")
-                    with col_r:
-                        if st.button("Start now", key=f"action_{act['id']}", type="primary" if act["id"] == suggested_id else "secondary"):
+            # 6 action cards in a 3x2 grid (two rows of three columns)
+            for row in range(2):
+                cols = st.columns(3)
+                for col_idx, col in enumerate(cols):
+                    i = row * 3 + col_idx
+                    act = ACTIONS[i]
+                    is_suggested = act["id"] == suggested_id
+                    card_class = "cc-action-card suggested" if is_suggested else "cc-action-card"
+                    card_html = (
+                        f'<div class="{card_class}">'
+                        f'<div class="cc-action-card-emoji">{html.escape(act["emoji"])}</div>'
+                        f'<div class="cc-action-card-label">{html.escape(act["label"])}</div>'
+                        f'<div class="cc-action-card-short">{html.escape(act["short"])}</div>'
+                        f'</div>'
+                    )
+                    with col:
+                        st.markdown(card_html, unsafe_allow_html=True)
+                        if st.button("Start now", key=f"action_{act['id']}", type="primary" if is_suggested else "secondary", use_container_width=True):
                             st.session_state.results_action_taken = act["id"]
                             st.rerun()
             st.session_state.feedback_opt_in = st.checkbox(
@@ -987,7 +1079,7 @@ elif st.session_state.step == "results":
             )
 
         # Optional next steps
-        st.markdown("**Optional next steps**")
+        st.markdown('<p class="cc-section-title">Optional next steps</p>', unsafe_allow_html=True)
         for step in suggestion["next_steps"]:
             st.markdown(f"- {step}")
 

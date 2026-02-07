@@ -48,6 +48,13 @@ def load_data(csv_path: str) -> pd.DataFrame:
     for c in ["phq2_score", "gad2_score", "action_suggested", "action_taken", "helped_score"]:
         if c not in df.columns:
             raise ValueError(f"Missing column: {c}")
+    # Drop rows where user did not complete the action (better training signal)
+    if "action_completed" in df.columns:
+        before = len(df)
+        df = df[df["action_completed"].fillna(0).astype(int) == 1].copy()
+        dropped = before - len(df)
+        if dropped:
+            print(f"Dropped {dropped} rows with action_completed=0 (kept {len(df)} completed).")
     return df
 
 

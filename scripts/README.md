@@ -21,6 +21,8 @@ pip install -r requirements.txt
 python scripts/train_coping_recommender.py path/to/calmcompass-feedback-YYYYMMDD-HHMM.csv
 ```
 
+Training **drops rows where `action_completed=0`** so the model learns from users who actually finished the action.
+
 Output:
 
 - `ml/coping_action_model.joblib` — sklearn pipeline (preprocessor + classifier)
@@ -43,7 +45,9 @@ Commit `ml/coping_action_model.joblib` and `ml/coping_action_meta.json`. The app
 | text_emotion_label  | (optional)  |
 | action_suggested   | Action the app recommended |
 | action_taken       | Action the user did (e.g. breathing_60s) |
-| helped_score        | 0 = Not really, 1 = A little, 2 = Yes |
+| action_completed   | 0 or 1 — 1 only if user finished the action (timer completed or Done clicked) |
+| time_spent_seconds | Seconds spent on the action (from Start to completion) |
+| helped_score       | 0 = Not really, 1 = A little, 2 = Yes |
 | ml_used            | 0 or 1      |
 | confidence         | Model confidence (if ml_used) |
 
