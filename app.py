@@ -80,6 +80,11 @@ from games.breathing import render_breathing_game
 from games.memory_match import render_memory_match
 from games.shell_game import render_shell_game
 
+try:
+    from ui.chat import render_chat_widget
+except Exception:
+    render_chat_widget = None  # Chat disabled if import fails (e.g. Streamlit Cloud)
+
 # Inner weather (Step 1): tiles + supportive line + context mapping
 WEATHER_TILES = [("☀", "Clear"), ("☁", "Cloudy"), ("🌬", "Windy"), ("🌫", "Foggy"), ("🌧", "Stormy")]
 WEATHER_SUPPORTIVE = {
@@ -1196,6 +1201,7 @@ elif st.session_state.step == "results":
             init_state()
             _go_to_step("intro")
 
-# ——— Chat widget disabled for Streamlit Cloud compatibility ———
-# st.markdown("---")
-# render_chat_widget()  # Re-enable when ui.chat loads in your environment
+# ——— Chat widget (bottom of page; optional if import failed) ———
+if render_chat_widget is not None:
+    st.markdown("---")
+    render_chat_widget()
