@@ -75,7 +75,7 @@ from ui.components import (
     survey_progress,
     survey_encouragement,
 )
-from ui.butterfly_bg import butterfly_background
+from ui.cursor_glow_bg import cursor_glow_background
 from games.breathing import render_breathing_game
 from games.memory_match import render_memory_match
 from games.shell_game import render_shell_game
@@ -479,8 +479,12 @@ def init_state():
 
 init_state()
 
-# Interactive butterfly background (fixed layer behind UI; cursor-attraction)
-butterfly_background(n=12, opacity=0.32, speed=1.0)
+# Cursor-following soft glow (fixed layer behind UI; moves with mouse)
+cursor_glow_background(opacity=0.35, size_px=380)
+
+# Chat pop-up first in DOM so it appears fixed bottom-right as soon as page loads
+if render_chat_widget is not None:
+    render_chat_widget(expanded_on_first_visit=True, floating=True)
 
 
 def run_question_set(questions, key_prefix, answers_list, prefix_text=None):
@@ -1235,6 +1239,4 @@ elif st.session_state.step == "results":
             init_state()
             _go_to_step("intro")
 
-# ——— Chat: floating pop-up (bottom-right), open on first visit ———
-if render_chat_widget is not None:
-    render_chat_widget(expanded_on_first_visit=True, floating=True)
+# Chat is rendered at top of app (right after background) so it pops up fixed bottom-right on load
