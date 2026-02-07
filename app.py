@@ -63,6 +63,7 @@ from ui.components import (
     survey_progress,
     survey_encouragement,
 )
+from games.breathing import render_breathing_game
 
 # Feeling chips for Step 1 (map to context later)
 FEELING_CHIPS = ["Overwhelmed", "Anxious", "Low", "Stressed", "Numb", "Okay"]
@@ -464,6 +465,24 @@ if st.session_state.step == "intro":
             st.session_state.saved_summary = None
             st.session_state.save_session = False
             st.rerun()
+    st.markdown("---")
+    st.markdown("**Try a 1-minute reset**")
+    st.caption("Quick support tools — not tests. Pick one:")
+    reset_cols = st.columns(4)
+    with reset_cols[0]:
+        if st.button("🫁 Breathe", key="reset_breathe"):
+            _go_to_step("breathing_game")
+    with reset_cols[1]:
+        st.button("🌤 Name my feeling", key="reset_feel_btn", disabled=True)
+    with reset_cols[2]:
+        st.button("💭 Clear my thoughts", key="reset_thoughts_btn", disabled=True)
+    with reset_cols[3]:
+        st.button("📍 Find my trigger", key="reset_trigger_btn", disabled=True)
+    st.caption("_More games coming: Inner Weather, Thought Reframe, Stress Trigger._")
+
+# ——— Calm Breathing Game (animated circle, 60s, “Did that help?”) ———
+elif st.session_state.step == "breathing_game":
+    render_breathing_game(return_step="intro")
 
 # ——— Support Now: full-screen feel, 60s timer, grounding, crisis panel ———
 elif st.session_state.step == "support_now":
