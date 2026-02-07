@@ -155,3 +155,33 @@ def progress_ring(percent: float, label: str = "Complete") -> None:
         f'</div>',
         unsafe_allow_html=True,
     )
+
+
+def survey_progress(current: int, total: int, subtitle: str = "") -> None:
+    """
+    Game-like progress: "Step 2 of 6" with a filled bar and optional subtitle.
+    Use for one-question-per-screen survey flow.
+    """
+    pct = round((current / total) * 100) if total else 0
+    sub = f'<p class="cc-survey-progress-sub">{subtitle}</p>' if subtitle else ""
+    st.markdown(
+        f'<div class="cc-survey-progress" style="--cc-survey-pct:{pct};">'
+        f'<div class="cc-survey-progress-bar"><div class="cc-survey-progress-fill"></div></div>'
+        f'<div class="cc-survey-progress-label">Step {current} of {total}</div>'
+        f'{sub}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def survey_encouragement(step: int, total: int) -> str:
+    """Short encouraging line between survey steps (game-like)."""
+    if step == 1:
+        return "Pick what feels right — there are no wrong answers."
+    if step == total - 1:
+        return "Almost there! One more question."
+    if step == total:
+        return "Last step. Your answer stays private."
+    if step == total // 2:
+        return "You're halfway there! 🌟"
+    return "You're doing great. Next question →"

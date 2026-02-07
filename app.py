@@ -7,6 +7,7 @@ Crisis path: self-harm = Yes → only crisis panel + grounding + exit (no ML, no
 
 import html
 import re
+import time
 from datetime import datetime
 
 import streamlit as st
@@ -59,10 +60,21 @@ from ui.components import (
     calm_meter,
     breathing_timer_placeholder,
     grounding_checkboxes,
+    survey_progress,
+    survey_encouragement,
 )
 
 # Feeling chips for Step 1 (map to context later)
 FEELING_CHIPS = ["Overwhelmed", "Anxious", "Low", "Stressed", "Numb", "Okay"]
+# Display options with friendly emoji for game-like survey (same order as OPTIONS: 0–4)
+OPTIONS_DISPLAY = [
+    "Not at all 🌱",
+    "Several days 🍃",
+    "More than half the days 🍂",
+    "Nearly every day 🍁",
+    "Prefer not to answer ✋",
+]
+SURVEY_TOTAL_STEPS = 6  # feel, mood_0, mood_1, worry_0, worry_1, safety
 FEELING_TO_CONTEXT = {
     "Overwhelmed": "Overwhelmed",
     "Anxious": "Anxious",
@@ -123,15 +135,30 @@ st.markdown("""
 
     @media (prefers-reduced-motion: reduce) {
         .stApp *, .cc-motion-in, .cc-stepper-progress, .cc-calm-meter-fill, .cc-timer-ring,
-        .cc-glass-card, .stButton > button, [data-testid="stRadio"] > label { animation: none !important; transition: none !important; }
+        .cc-glass-card, .cc-survey-progress-fill, .stButton > button, [data-testid="stRadio"] > label { animation: none !important; transition: none !important; }
         .cc-motion-in { opacity: 1; transform: none !important; }
         .cc-calm-meter-fill { width: calc(var(--cc-meter-pct, 0) * 1%) !important; }
         .cc-stepper-progress { width: calc(var(--cc-stepper-pct, 0) * 1%) !important; }
+        .cc-survey-progress-fill { width: calc(var(--cc-survey-pct, 0) * 1%) !important; }
+    }
+
+    /* ----- Game-like palette: warm + calm (not plain) ----- */
+    :root {
+        --cc-bg-start: #f8f4f0;
+        --cc-bg-mid: #eef5f2;
+        --cc-bg-end: #e8f0ed;
+        --cc-accent: #2d7a63;
+        --cc-accent-soft: #4a9d82;
+        --cc-mood: #5b7cba;
+        --cc-worry: #c9a227;
+        --cc-feel: #6b9080;
+        --cc-card-bg: rgba(255,255,255,0.82);
+        --cc-card-border: rgba(45,122,99,0.15);
     }
 
     /* ----- Liquid gradient background + drifting orbs + noise ----- */
     .stApp {
-        background: linear-gradient(160deg, #f0f7f4 0%, #e5f0ec 18%, #dcebe6 35%, #e2eeea 52%, #e8f2ef 70%, #f0f7f4 88%);
+        background: linear-gradient(165deg, var(--cc-bg-start) 0%, #f2f7f5 25%, var(--cc-bg-mid) 50%, #e5f0ec 75%, var(--cc-bg-end) 100%);
         background-size: 220% 220%;
         animation: cc-bg 20s ease-in-out infinite;
     }
@@ -141,13 +168,13 @@ st.markdown("""
     }
     .stApp::before {
         content: ""; position: fixed; top: -15%; left: -5%; width: 45%; height: 55%;
-        background: radial-gradient(ellipse, rgba(27,94,74,0.06) 0%, transparent 65%);
+        background: radial-gradient(ellipse, rgba(91,124,186,0.08) 0%, transparent 65%);
         border-radius: 50%; pointer-events: none; z-index: 0;
         animation: cc-orb1 22s ease-in-out infinite;
     }
     .stApp::after {
         content: ""; position: fixed; bottom: -20%; right: -8%; width: 50%; height: 50%;
-        background: radial-gradient(ellipse, rgba(45,74,66,0.05) 0%, transparent 65%);
+        background: radial-gradient(ellipse, rgba(107,144,128,0.08) 0%, transparent 65%);
         border-radius: 50%; pointer-events: none; z-index: 0;
         animation: cc-orb2 18s ease-in-out infinite;
     }
@@ -276,6 +303,33 @@ st.markdown("""
     .cc-crisis-panel a { color: #b02a37; font-weight: 600; }
     .cc-crisis-line { font-size: 1.1rem; font-weight: 600; margin: 0.5rem 0; }
     .cc-disclaimer { font-size: 0.85rem; color: #5a7a72; margin-top: 1rem; }
+
+    /* ----- Game-like survey: progress bar + step label ----- */
+    .cc-survey-progress { margin-bottom: 1.25rem; }
+    .cc-survey-progress-bar { height: 8px; background: rgba(45,122,99,0.15); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem; }
+    .cc-survey-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--cc-accent-soft), var(--cc-accent)); border-radius: 8px; animation: cc-surveyFill 0.5s ease-out forwards; }
+    @keyframes cc-surveyFill { to { width: calc(var(--cc-survey-pct, 0) * 1%); } }
+    .cc-survey-progress-label { font-size: 0.9rem; font-weight: 600; color: var(--cc-accent); letter-spacing: 0.02em; }
+    .cc-survey-progress-sub { font-size: 0.85rem; color: #5a7a72; margin: 0.25rem 0 0 0; }
+
+    /* ----- Big option cards for survey (radio labels as tappable cards) ----- */
+    .block-container [data-testid="stRadio"] > label {
+        display: block; padding: 1rem 1.25rem; margin: 0.5rem 0; border-radius: 16px;
+        background: var(--cc-card-bg); border: 2px solid var(--cc-card-border);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04); font-weight: 500; font-size: 1rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .block-container [data-testid="stRadio"] > label:hover {
+        transform: translateY(-2px); box-shadow: 0 6px 20px rgba(45,122,99,0.12);
+        border-color: rgba(45,122,99,0.35); background: rgba(255,255,255,0.95);
+    }
+    .block-container [data-testid="stRadio"] > label:has(input:checked) {
+        border-color: var(--cc-accent); background: rgba(45,122,99,0.08);
+        box-shadow: 0 4px 16px rgba(45,122,99,0.2);
+    }
+    .cc-survey-question { font-size: 1.1rem; font-weight: 600; color: #0F2A22; margin-bottom: 1rem; line-height: 1.4; }
+    .cc-survey-cheer { font-size: 0.95rem; color: #2D4A42; margin-bottom: 1rem; }
+    .cc-how-you-moved { border-left: 4px solid var(--cc-accent-soft); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -293,6 +347,12 @@ def init_state():
         "hardest": None,
         "save_session": False,
         "saved_summary": None,
+        # Game / patience / thinking metrics (session only, not stored)
+        "total_clicks": 0,
+        "step_entered_at": None,
+        "step_times": {},
+        "game_clicks": [],
+        "patience_game_done": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -328,10 +388,51 @@ def _score_line(name: str, score: int | None, answered: int, total: int) -> str:
 
 
 def _go_to_step(step_name: str) -> None:
-    """Change step and bump render nonce so motion container re-animates."""
+    """Change step, record time on previous step, count click, bump nonce, rerun."""
+    now = time.time()
+    old_step = st.session_state.get("step")
+    step_entered = st.session_state.get("step_entered_at")
+    if step_entered is not None and old_step:
+        if "step_times" not in st.session_state:
+            st.session_state.step_times = {}
+        st.session_state.step_times[old_step] = round(now - step_entered, 1)
+    st.session_state.step_entered_at = now
     st.session_state.step = step_name
+    st.session_state["total_clicks"] = st.session_state.get("total_clicks", 0) + 1
     st.session_state["render_nonce"] = (st.session_state.get("render_nonce") or 0) + 1
     st.rerun()
+
+
+def _render_how_you_moved() -> None:
+    """Show a short, non-judgmental reflection on clicks and pace (session only)."""
+    total_clicks = st.session_state.get("total_clicks") or 0
+    step_times = st.session_state.get("step_times") or {}
+    game_clicks = st.session_state.get("game_clicks") or []
+    lines = []
+    if total_clicks > 0:
+        lines.append(f"You used about <strong>{total_clicks}</strong> clicks to get here.")
+    if step_times:
+        survey_steps = ("feeling", "mood_0", "mood_1", "worry_0", "worry_1", "safety", "patience_game")
+        times_on_survey = [step_times.get(s) for s in survey_steps if step_times.get(s) is not None]
+        if times_on_survey:
+            avg_sec = sum(times_on_survey) / len(times_on_survey)
+            if avg_sec < 5:
+                lines.append("You moved through the questions quickly.")
+            elif avg_sec > 15:
+                lines.append("You took your time on the questions.")
+            else:
+                lines.append("You moved at a steady pace.")
+    if len(game_clicks) >= 2:
+        intervals = [game_clicks[i + 1] - game_clicks[i] for i in range(len(game_clicks) - 1)]
+        avg_gap = sum(intervals) / len(intervals)
+        if avg_gap < 0.5:
+            lines.append("In the pause game you tapped quickly — no wrong answer.")
+        elif avg_gap >= 1.0:
+            lines.append("In the pause game you paused between taps.")
+    if not lines:
+        return
+    body = " ".join(lines) + " This is just for reflection, not a diagnosis."
+    glass_card(f'<p class="cc-survey-cheer" style="margin:0;"><strong>How you moved</strong><br>{body}</p>', "cc-how-you-moved")
 
 
 # ——— Landing: hero + two buttons ———
@@ -341,8 +442,8 @@ if st.session_state.step == "intro":
         '<div class="cc-hero">'
         '<span class="cc-hero-icon" aria-hidden="true">🧭</span>'
         '<span class="cc-hero-title">CalmCompass</span></div>'
-        '<p class="cc-hero-tagline">A 2-minute check-in. One clear next step. Nothing stored unless you choose.</p>'
-        '<div class="cc-glass-card"><p style="margin:0; color:#2D4A42;">Choose what you need right now.</p></div>'
+        '<p class="cc-hero-tagline">A short, gentle check-in — one question at a time. Like a quick game. Nothing stored unless you choose.</p>'
+        '<div class="cc-glass-card"><p style="margin:0; color:#2D4A42;">Choose how you want to start.</p></div>'
     )
     motion_container("intro", intro_html, nonce)
     col1, col2 = st.columns(2)
@@ -392,15 +493,11 @@ elif st.session_state.step == "support_now":
     if st.button("← Back to home", key="support_back"):
         _go_to_step("intro")
 
-# ——— Step 1: How are you feeling right now? (chips) ———
+# ——— Game-like survey: one question per screen (Steps 1–6) ———
 elif st.session_state.step == "feeling":
     nonce = st.session_state.get("render_nonce") or 0
-    feeling_block = (
-        stepper_html(1, 3, ["How you feel", "Mood & worry", "Results"])
-        + '<h3>How are you feeling right now?</h3>'
-        '<p class="cc-hero-tagline" style="margin-bottom:0.5rem;">Pick the one that fits best. This helps us tailor your next step.</p>'
-    )
-    motion_container("feeling", feeling_block, nonce)
+    survey_progress(1, SURVEY_TOTAL_STEPS, "How are you feeling right now?")
+    motion_container("feeling", f'<p class="cc-survey-cheer">{survey_encouragement(1, SURVEY_TOTAL_STEPS)}</p>', nonce)
     chosen = st.radio(
         "Choose one",
         FEELING_CHIPS,
@@ -414,55 +511,163 @@ elif st.session_state.step == "feeling":
         ctx = st.session_state.context
         ctx["feeling_today"] = FEELING_TO_CONTEXT.get(chosen, chosen)
         st.session_state.context = ctx
-    if st.button("Next →", key="feeling_next"):
-        _go_to_step("phq2")
+    col_b, col_n = st.columns([1, 2])
+    with col_b:
+        if st.button("← Back", key="feeling_back"):
+            _go_to_step("intro")
+    with col_n:
+        if st.button("Next →", key="feeling_next"):
+            _go_to_step("mood_0")
 
-# ——— Step 2: PHQ-2 ———
-elif st.session_state.step == "phq2":
-    nonce = st.session_state.get("render_nonce") or 0
-    phq2_block = (
-        stepper_html(1, 3, ["How you feel", "Mood & worry", "Results"])
-        + '<h3>How you\'ve been feeling (mood)</h3>'
+elif st.session_state.step == "mood_0":
+    survey_progress(2, SURVEY_TOTAL_STEPS, "About your mood (last 2 weeks)")
+    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(2, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    phq2 = st.session_state.phq2
+    default = phq2[0] if len(phq2) >= 1 else 0
+    default = min(default, len(OPTIONS) - 1)
+    sel = st.radio(
+        PHQ2_QUESTIONS[0],
+        range(len(OPTIONS)),
+        format_func=lambda i: OPTIONS_DISPLAY[i],
+        key="mood_0_radio",
+        index=default,
+        label_visibility="collapsed",
     )
-    motion_container("phq2", phq2_block, nonce)
-    st.session_state.phq2 = run_question_set(
-        PHQ2_QUESTIONS, "phq2", st.session_state.phq2,
-        "Last 2 weeks. You can choose \"Prefer not to answer.\"",
-    )
-    if st.button("Next →", key="phq2_next"):
-        _go_to_step("gad2")
+    st.session_state.phq2 = [sel] + (phq2[1:] if len(phq2) > 1 else [0])
+    col_b, col_n = st.columns([1, 2])
+    with col_b:
+        if st.button("← Back", key="mood0_back"):
+            _go_to_step("feeling")
+    with col_n:
+        if st.button("Next →", key="mood_0_next"):
+            _go_to_step("mood_1")
 
-# ——— Step 2 (cont.): GAD-2 ———
-elif st.session_state.step == "gad2":
-    nonce = st.session_state.get("render_nonce") or 0
-    gad2_block = (
-        stepper_html(2, 3, ["How you feel", "Mood & worry", "Results"])
-        + '<h3>How you\'ve been feeling (worry)</h3>'
+elif st.session_state.step == "mood_1":
+    survey_progress(3, SURVEY_TOTAL_STEPS, "One more about mood")
+    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(3, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    phq2 = st.session_state.phq2
+    default = phq2[1] if len(phq2) > 1 else 0
+    default = min(default, len(OPTIONS) - 1)
+    sel = st.radio(
+        PHQ2_QUESTIONS[1],
+        range(len(OPTIONS)),
+        format_func=lambda i: OPTIONS_DISPLAY[i],
+        key="mood_1_radio",
+        index=default,
+        label_visibility="collapsed",
     )
-    motion_container("gad2", gad2_block, nonce)
-    st.session_state.gad2 = run_question_set(
-        GAD2_QUESTIONS, "gad2", st.session_state.gad2,
-        "Last 2 weeks. You can choose \"Prefer not to answer.\"",
-    )
-    if st.button("Next →", key="gad2_next"):
-        _go_to_step("self_harm")
+    st.session_state.phq2 = (phq2[:1] if len(phq2) >= 1 else [0]) + [sel]
+    col_b, col_n = st.columns([1, 2])
+    with col_b:
+        if st.button("← Back", key="mood1_back"):
+            _go_to_step("mood_0")
+    with col_n:
+        if st.button("Next →", key="mood_1_next"):
+            _go_to_step("worry_0")
 
-# ——— Step 3: Safety question ———
-elif st.session_state.step == "self_harm":
-    nonce = st.session_state.get("render_nonce") or 0
-    self_harm_block = (
-        stepper_html(3, 3, ["How you feel", "Mood & worry", "Results"])
-        + '<h3>One more question</h3>'
-        '<p class="cc-hero-tagline" style="margin-bottom:0.5rem;">Your answer is private. Used only to show the right resources.</p>'
+elif st.session_state.step == "worry_0":
+    survey_progress(4, SURVEY_TOTAL_STEPS, "About worry (last 2 weeks)")
+    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(4, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    gad2 = st.session_state.gad2
+    default = gad2[0] if len(gad2) >= 1 else 0
+    default = min(default, len(OPTIONS) - 1)
+    sel = st.radio(
+        GAD2_QUESTIONS[0],
+        range(len(OPTIONS)),
+        format_func=lambda i: OPTIONS_DISPLAY[i],
+        key="worry_0_radio",
+        index=default,
+        label_visibility="collapsed",
     )
-    motion_container("self_harm", self_harm_block, nonce)
+    st.session_state.gad2 = [sel] + (gad2[1:] if len(gad2) > 1 else [0])
+    col_b, col_n = st.columns([1, 2])
+    with col_b:
+        if st.button("← Back", key="worry0_back"):
+            _go_to_step("mood_1")
+    with col_n:
+        if st.button("Next →", key="worry_0_next"):
+            _go_to_step("worry_1")
+
+elif st.session_state.step == "worry_1":
+    survey_progress(5, SURVEY_TOTAL_STEPS, "One more about worry")
+    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(5, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
+    gad2 = st.session_state.gad2
+    default = gad2[1] if len(gad2) > 1 else 0
+    default = min(default, len(OPTIONS) - 1)
+    sel = st.radio(
+        GAD2_QUESTIONS[1],
+        range(len(OPTIONS)),
+        format_func=lambda i: OPTIONS_DISPLAY[i],
+        key="worry_1_radio",
+        index=default,
+        label_visibility="collapsed",
+    )
+    st.session_state.gad2 = (gad2[:1] if len(gad2) >= 1 else [0]) + [sel]
+    col_b, col_n = st.columns([1, 2])
+    with col_b:
+        if st.button("← Back", key="worry1_back"):
+            _go_to_step("worry_0")
+    with col_n:
+        if st.button("Next →", key="worry_1_next"):
+            _go_to_step("safety")
+
+elif st.session_state.step == "safety":
+    survey_progress(6, SURVEY_TOTAL_STEPS, "Last step — your answer is private")
+    st.markdown(f'<p class="cc-survey-cheer">{survey_encouragement(6, SURVEY_TOTAL_STEPS)}</p>', unsafe_allow_html=True)
     st.session_state.self_harm = st.radio(
         SELF_HARM_QUESTION,
         SELF_HARM_CHOICES,
         key="self_harm_radio",
         index=0,
     )
-    if st.button("See my results", key="see_results"):
+    col_b, col_n = st.columns([1, 2])
+    with col_b:
+        if st.button("← Back", key="safety_back"):
+            _go_to_step("worry_1")
+    with col_n:
+        if st.button("See my results", key="see_results"):
+            if st.session_state.self_harm == "Yes":
+                _go_to_step("results")
+            else:
+                _go_to_step("patience_game")
+
+# ——— Patience game: 5 taps with pauses (tests pace / impulsivity; optional) ———
+elif st.session_state.step == "patience_game":
+    game_clicks = st.session_state.get("game_clicks") or []
+    needed = 5
+    st.markdown("### A quick pause game")
+    st.markdown(
+        "Tap the button below **5 times**, with a short pause between each tap. "
+        "There's no right or wrong — we're just noticing how you like to move. You can skip if you prefer."
+    )
+    if len(game_clicks) < needed:
+        st.caption(f"Tap {len(game_clicks) + 1} of {needed}")
+        if st.button("Tap", type="primary", key="game_tap"):
+            st.session_state["total_clicks"] = st.session_state.get("total_clicks", 0) + 1
+            if "game_clicks" not in st.session_state:
+                st.session_state.game_clicks = []
+            st.session_state.game_clicks.append(time.time())
+            st.rerun()
+    else:
+        # Compute average time between taps (seconds)
+        clicks = st.session_state.game_clicks
+        if len(clicks) >= 2:
+            intervals = [clicks[i + 1] - clicks[i] for i in range(len(clicks) - 1)]
+            avg_interval = sum(intervals) / len(intervals)
+            if avg_interval < 0.5:
+                reflection = "You tapped quickly. Sometimes slowing down just a little between actions can help."
+            elif avg_interval >= 1.2:
+                reflection = "You took your time between taps. That kind of pacing is a strength."
+            else:
+                reflection = "You kept a steady pace. Nice."
+        else:
+            reflection = "You finished the taps. Ready for your results."
+        st.session_state.patience_game_done = True
+        glass_card(f'<p style="margin:0; color:#2D4A42;">{reflection}</p>', "")
+        if st.button("Continue to my results", type="primary", key="game_continue"):
+            _go_to_step("results")
+    st.markdown("---")
+    if st.button("Skip and go to results", key="game_skip"):
         _go_to_step("results")
 
 # ——— Results ———
@@ -510,6 +715,8 @@ elif st.session_state.step == "results":
         # Results screen motion (fade + slide up)
         nonce = st.session_state.get("render_nonce") or 0
         motion_container("results", '<h3>Here\'s what might help</h3>', nonce)
+        # How you moved: clicks, time per step, patience game (gentle reflection only)
+        _render_how_you_moved()
         if suggestion.get("partial_note"):
             st.caption(suggestion["partial_note"])
         if ml_used:
