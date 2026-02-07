@@ -64,6 +64,8 @@ from ui.components import (
     survey_encouragement,
 )
 from games.breathing import render_breathing_game
+from games.memory_match import render_memory_match
+from games.shell_game import render_shell_game
 
 # Feeling chips for Step 1 (map to context later)
 FEELING_CHIPS = ["Overwhelmed", "Anxious", "Low", "Stressed", "Numb", "Okay"]
@@ -132,7 +134,9 @@ st.markdown("""
     .stApp, .block-container, [class*="cc-"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Inter, sans-serif;
     }
-    .block-container { position: relative; z-index: 1; max-width: 640px; padding: 2rem 1.5rem 2.5rem; margin: 0 auto; }
+    .block-container { position: relative; z-index: 1; max-width: 640px; padding: 2rem 1.5rem 2.5rem; margin: 0 auto; color: #e2e8f0; }
+    .stApp p, .stApp label, .stApp .stMarkdown { color: #e2e8f0; }
+    .stApp h1, .stApp h2, .stApp h3 { color: #f1f5f9; }
 
     @media (prefers-reduced-motion: reduce) {
         .stApp *, .cc-motion-in, .cc-stepper-progress, .cc-calm-meter-fill, .cc-timer-ring,
@@ -157,37 +161,43 @@ st.markdown("""
         --cc-card-border: rgba(45,122,99,0.15);
     }
 
-    /* ----- Liquid gradient background + drifting orbs + noise ----- */
+    /* ----- Realtime-style moving background: multiple layers, floating shapes ----- */
     .stApp {
-        background: linear-gradient(165deg, var(--cc-bg-start) 0%, #f2f7f5 25%, var(--cc-bg-mid) 50%, #e5f0ec 75%, var(--cc-bg-end) 100%);
-        background-size: 220% 220%;
-        animation: cc-bg 20s ease-in-out infinite;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 20%, #334155 40%, #1e3a5f 60%, #0f172a 80%);
+        background-size: 400% 400%;
+        animation: cc-bg-realtime 15s ease infinite;
     }
-    @keyframes cc-bg {
+    @keyframes cc-bg-realtime {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
     }
     .stApp::before {
-        content: ""; position: fixed; top: -15%; left: -5%; width: 45%; height: 55%;
-        background: radial-gradient(ellipse, rgba(91,124,186,0.08) 0%, transparent 65%);
+        content: ""; position: fixed; top: -20%; left: -10%; width: 50%; height: 60%;
+        background: radial-gradient(ellipse, rgba(56,189,248,0.15) 0%, rgba(14,165,233,0.08) 40%, transparent 70%);
         border-radius: 50%; pointer-events: none; z-index: 0;
-        animation: cc-orb1 22s ease-in-out infinite;
+        animation: cc-float1 18s ease-in-out infinite;
     }
     .stApp::after {
-        content: ""; position: fixed; bottom: -20%; right: -8%; width: 50%; height: 50%;
-        background: radial-gradient(ellipse, rgba(107,144,128,0.08) 0%, transparent 65%);
+        content: ""; position: fixed; bottom: -25%; right: -15%; width: 55%; height: 55%;
+        background: radial-gradient(ellipse, rgba(34,211,238,0.12) 0%, rgba(6,182,212,0.06) 45%, transparent 70%);
         border-radius: 50%; pointer-events: none; z-index: 0;
-        animation: cc-orb2 18s ease-in-out infinite;
+        animation: cc-float2 20s ease-in-out infinite;
     }
-    @keyframes cc-orb1 { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; } 50% { transform: translate(8%, 5%) scale(1.05); opacity: 1; } }
-    @keyframes cc-orb2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-5%, -8%) scale(1.08); } }
-    /* Third/fourth orbs via main container pseudo (no extra element): use a wrapper in streamlit we don't have, so two orbs only */
-
-    /* Noise overlay (CSS-only: fine repeating gradient as texture) */
+    @keyframes cc-float1 { 0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.9; } 33% { transform: translate(12%, 8%) scale(1.1) rotate(5deg); opacity: 1; } 66% { transform: translate(-5%, 12%) scale(0.95) rotate(-3deg); opacity: 0.85; } }
+    @keyframes cc-float2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-10%, -12%) scale(1.15); } }
+    /* Floating accent orbs (via block-container) */
     .block-container::before {
+        content: ""; position: fixed; top: 40%; left: 60%; width: 25%; height: 25%;
+        background: radial-gradient(circle, rgba(251,191,36,0.08) 0%, transparent 70%);
+        border-radius: 50%; pointer-events: none; z-index: 0;
+        animation: cc-float3 12s ease-in-out infinite;
+    }
+    @keyframes cc-float3 { 0%, 100% { transform: translate(0, 0); opacity: 0.6; } 50% { transform: translate(15%, -15%); opacity: 1; } }
+    .block-container > * { position: relative; z-index: 1; }
+    /* Light noise overlay */
+    .block-container::after {
         content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-        opacity: 0.5;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
     }
 
     /* ----- Step transition: fade + slide up ----- */
@@ -203,14 +213,14 @@ st.markdown("""
     /* ----- Typography & spacing ----- */
     .cc-hero { display: flex; align-items: center; gap: 0.875rem; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
     .cc-hero-icon { font-size: 2.25rem; line-height: 1; }
-    .cc-hero-title { font-size: 1.875rem; font-weight: 700; color: #0F2A22; letter-spacing: -0.035em; }
-    .cc-hero-tagline { color: #1B5E4A; font-size: 1.0625rem; margin-bottom: 1.5rem; line-height: 1.45; font-weight: 400; }
+    .cc-hero-title { font-size: 1.875rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.035em; }
+    .cc-hero-tagline { color: #94a3b8; font-size: 1.0625rem; margin-bottom: 1.5rem; line-height: 1.45; font-weight: 400; }
     h1, h2, h3 { font-family: inherit; letter-spacing: -0.02em; }
     .block-container > * { margin-bottom: 0.75rem; }
 
     /* ----- Glass cards: true glassmorphism, elevation hover, 20–24px radius ----- */
     .cc-glass-card {
-        background: rgba(255,255,255,0.68);
+        background: rgba(30,41,59,0.75);
         backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
         border-radius: 22px; padding: 1.5rem 1.75rem; margin: 1rem 0;
         border: 1px solid rgba(27,94,74,0.08);
@@ -241,19 +251,19 @@ st.markdown("""
     }
     .cc-step.done .cc-step-dot { background: #2d7a63; }
     .cc-step-dot { width: 22px; height: 22px; border-radius: 50%; background: rgba(27,94,74,0.15); transition: all 0.25s ease; z-index: 1; }
-    .cc-step-label { font-size: 0.8125rem; color: #2D4A42; margin-top: 0.5rem; font-weight: 500; letter-spacing: -0.01em; }
-    .cc-step.active .cc-step-label { color: #0F2A22; font-weight: 600; }
+    .cc-step-label { font-size: 0.8125rem; color: #94a3b8; margin-top: 0.5rem; font-weight: 500; letter-spacing: -0.01em; }
+    .cc-step.active .cc-step-label { color: #f1f5f9; font-weight: 600; }
 
     /* ----- Result panel sections ----- */
     .cc-card-section { display: flex; gap: 0.875rem; align-items: flex-start; margin: 0.875rem 0; padding: 0.875rem 0; border-bottom: 1px solid rgba(27,94,74,0.06); }
     .cc-card-section:last-child { border-bottom: none; }
     .cc-card-icon { font-size: 1.25rem; opacity: 0.9; }
-    .cc-card-section-title { font-weight: 600; color: #0F2A22; font-size: 0.9375rem; margin-bottom: 0.25rem; letter-spacing: -0.01em; }
-    .cc-card-section-body { color: #2D4A42; font-size: 0.9375rem; line-height: 1.52; }
+    .cc-card-section-title { font-weight: 600; color: #e2e8f0; font-size: 0.9375rem; margin-bottom: 0.25rem; letter-spacing: -0.01em; }
+    .cc-card-section-body { color: #cbd5e1; font-size: 0.9375rem; line-height: 1.52; }
 
     /* ----- Calm meter: fill animates from 0 to value ----- */
     .cc-calm-meter { margin: 1.25rem 0; }
-    .cc-calm-meter-label { font-size: 0.9375rem; font-weight: 600; color: #0F2A22; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+    .cc-calm-meter-label { font-size: 0.9375rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
     .cc-calm-meter-track { height: 10px; background: rgba(27,94,74,0.1); border-radius: 10px; overflow: hidden; }
     .cc-calm-meter-fill {
         height: 100%; width: 0; background: linear-gradient(90deg, #2d7a63, #1B5E4A); border-radius: 10px;
@@ -266,9 +276,9 @@ st.markdown("""
     .cc-timer-ring { display: none; position: absolute; inset: -4px; border-radius: 26px; border: 2px solid rgba(27,94,74,0.2); pointer-events: none; }
     .cc-timer-box.cc-timer-pulse .cc-timer-ring { display: block; animation: cc-timerPulse 2.5s ease-in-out infinite; }
     @keyframes cc-timerPulse { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.02); opacity: 0.9; } }
-    .cc-timer-value { font-size: 3rem; font-weight: 700; color: #1B5E4A; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-    .cc-timer-label { font-size: 0.9375rem; color: #2D4A42; margin-top: 0.5rem; }
-    .cc-timer-done .cc-timer-value { color: #2d7a63; }
+    .cc-timer-value { font-size: 3rem; font-weight: 700; color: #38bdf8; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .cc-timer-label { font-size: 0.9375rem; color: #94a3b8; margin-top: 0.5rem; }
+    .cc-timer-done .cc-timer-value { color: #22d3ee; }
 
     /* ----- Buttons: primary pill + gradient highlight; secondary outlined ----- */
     .stButton > button {
@@ -300,10 +310,10 @@ st.markdown("""
     .cc-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(27,94,74,0.12), transparent); margin: 1.5rem 0; }
 
     /* Crisis panel */
-    .cc-crisis-panel { background: rgba(220,53,69,0.08); border: 2px solid rgba(220,53,69,0.3); border-radius: 16px; padding: 1.25rem; margin: 1rem 0; color: #0F2A22; }
-    .cc-crisis-panel a { color: #b02a37; font-weight: 600; }
+    .cc-crisis-panel { background: rgba(220,53,69,0.12); border: 2px solid rgba(220,53,69,0.4); border-radius: 16px; padding: 1.25rem; margin: 1rem 0; color: #f1f5f9; }
+    .cc-crisis-panel a { color: #f87171; font-weight: 600; }
     .cc-crisis-line { font-size: 1.1rem; font-weight: 600; margin: 0.5rem 0; }
-    .cc-disclaimer { font-size: 0.85rem; color: #5a7a72; margin-top: 1rem; }
+    .cc-disclaimer { font-size: 0.85rem; color: #94a3b8; margin-top: 1rem; }
 
     /* ----- Game-like survey: progress bar + step label ----- */
     .cc-survey-progress { margin-bottom: 1.25rem; }
@@ -311,7 +321,7 @@ st.markdown("""
     .cc-survey-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--cc-accent-soft), var(--cc-accent)); border-radius: 8px; animation: cc-surveyFill 0.5s ease-out forwards; }
     @keyframes cc-surveyFill { to { width: calc(var(--cc-survey-pct, 0) * 1%); } }
     .cc-survey-progress-label { font-size: 0.9rem; font-weight: 600; color: var(--cc-accent); letter-spacing: 0.02em; }
-    .cc-survey-progress-sub { font-size: 0.85rem; color: #5a7a72; margin: 0.25rem 0 0 0; }
+    .cc-survey-progress-sub { font-size: 0.85rem; color: #94a3b8; margin: 0.25rem 0 0 0; }
 
     /* ----- Big option cards for survey (radio labels as tappable cards) ----- */
     .block-container [data-testid="stRadio"] > label {
@@ -328,8 +338,8 @@ st.markdown("""
         border-color: var(--cc-accent); background: rgba(45,122,99,0.08);
         box-shadow: 0 4px 16px rgba(45,122,99,0.2);
     }
-    .cc-survey-question { font-size: 1.1rem; font-weight: 600; color: #0F2A22; margin-bottom: 1rem; line-height: 1.4; }
-    .cc-survey-cheer { font-size: 0.95rem; color: #2D4A42; margin-bottom: 1rem; }
+    .cc-survey-question { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 1rem; line-height: 1.4; }
+    .cc-survey-cheer { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 1rem; }
     .cc-how-you-moved { border-left: 4px solid var(--cc-accent-soft); }
 </style>
 """, unsafe_allow_html=True)
@@ -399,19 +409,18 @@ def _go_to_step(step_name: str) -> None:
         st.session_state.step_times[old_step] = round(now - step_entered, 1)
     st.session_state.step_entered_at = now
     st.session_state.step = step_name
-    st.session_state["total_clicks"] = st.session_state.get("total_clicks", 0) + 1
     st.session_state["render_nonce"] = (st.session_state.get("render_nonce") or 0) + 1
     st.rerun()
 
 
 def _render_how_you_moved() -> None:
-    """Show a short, non-judgmental reflection on clicks and pace (session only)."""
-    total_clicks = st.session_state.get("total_clicks") or 0
+    """Show a short, non-judgmental reflection on pace and game taps only (session only)."""
     step_times = st.session_state.get("step_times") or {}
     game_clicks = st.session_state.get("game_clicks") or []
     lines = []
-    if total_clicks > 0:
-        lines.append(f"You used about <strong>{total_clicks}</strong> clicks to get here.")
+    # Only count the 5 pause-game taps, not navigation clicks
+    if len(game_clicks) > 0:
+        lines.append(f"In the pause game you tapped <strong>{len(game_clicks)}</strong> times.")
     if step_times:
         survey_steps = ("feeling", "mood_0", "mood_1", "worry_0", "worry_1", "safety", "patience_game")
         times_on_survey = [step_times.get(s) for s in survey_steps if step_times.get(s) is not None]
@@ -427,9 +436,9 @@ def _render_how_you_moved() -> None:
         intervals = [game_clicks[i + 1] - game_clicks[i] for i in range(len(game_clicks) - 1)]
         avg_gap = sum(intervals) / len(intervals)
         if avg_gap < 0.5:
-            lines.append("In the pause game you tapped quickly — no wrong answer.")
+            lines.append("You tapped quickly — no wrong answer.")
         elif avg_gap >= 1.0:
-            lines.append("In the pause game you paused between taps.")
+            lines.append("You paused between taps.")
     if not lines:
         return
     body = " ".join(lines) + " This is just for reflection, not a diagnosis."
@@ -444,7 +453,7 @@ if st.session_state.step == "intro":
         '<span class="cc-hero-icon" aria-hidden="true">🧭</span>'
         '<span class="cc-hero-title">CalmCompass</span></div>'
         '<p class="cc-hero-tagline">A short, gentle check-in — one question at a time. Like a quick game. Nothing stored unless you choose.</p>'
-        '<div class="cc-glass-card"><p style="margin:0; color:#2D4A42;">Choose how you want to start.</p></div>'
+        '<div class="cc-glass-card"><p style="margin:0; color:#e2e8f0;">Choose how you want to start.</p></div>'
     )
     motion_container("intro", intro_html, nonce)
     col1, col2 = st.columns(2)
@@ -466,23 +475,33 @@ if st.session_state.step == "intro":
             st.session_state.save_session = False
             st.rerun()
     st.markdown("---")
-    st.markdown("**Try a 1-minute reset**")
-    st.caption("Quick support tools — not tests. Pick one:")
+    st.markdown("**🧩 Mental Reset Games**")
+    st.caption("Quick focus tools — not tests. Pick one:")
     reset_cols = st.columns(4)
     with reset_cols[0]:
         if st.button("🫁 Breathe", key="reset_breathe"):
             _go_to_step("breathing_game")
     with reset_cols[1]:
-        st.button("🌤 Name my feeling", key="reset_feel_btn", disabled=True)
+        if st.button("🥚 Find the Egg", key="reset_shell"):
+            _go_to_step("shell_game")
     with reset_cols[2]:
-        st.button("💭 Clear my thoughts", key="reset_thoughts_btn", disabled=True)
+        if st.button("🧠 Memory Match", key="reset_memory"):
+            _go_to_step("memory_game")
     with reset_cols[3]:
-        st.button("📍 Find my trigger", key="reset_trigger_btn", disabled=True)
-    st.caption("_More games coming: Inner Weather, Thought Reframe, Stress Trigger._")
+        st.button("🌤 More coming", key="reset_more_btn", disabled=True)
+    st.caption("_More games coming: Focus Grid, Spot the Change, Tic-Tac-Toe._")
 
 # ——— Calm Breathing Game (animated circle, 60s, “Did that help?”) ———
 elif st.session_state.step == "breathing_game":
     render_breathing_game(return_step="intro")
+
+# ——— Memory Match (thinking / memory game) ———
+elif st.session_state.step == "memory_game":
+    render_memory_match(return_step="intro")
+
+# ——— Shell Game (Find the Egg — 3 cups, mix, guess) ———
+elif st.session_state.step == "shell_game":
+    render_shell_game(return_step="intro")
 
 # ——— Support Now: full-screen feel, 60s timer, grounding, crisis panel ———
 elif st.session_state.step == "support_now":
@@ -490,7 +509,7 @@ elif st.session_state.step == "support_now":
     support_html = (
         '<div class="cc-hero"><span class="cc-hero-icon">🫁</span><span class="cc-hero-title">Support Now</span></div>'
         '<p class="cc-hero-tagline">You don\'t have to fix anything in the next few minutes. Try the steps below.</p>'
-        f'<div class="cc-glass-card"><p style="margin:0 0 0.5rem 0; font-weight:600; color:#0F2A22;">{html.escape(SUPPORT_NOW_CALMING)}</p></div>'
+        f'<div class="cc-glass-card"><p style="margin:0 0 0.5rem 0; font-weight:600; color:#e2e8f0;">{html.escape(SUPPORT_NOW_CALMING)}</p></div>'
     )
     motion_container("support_now", support_html, nonce, "cc-support-now")
     st.markdown("**60-second breathing** — Start the timer and follow 4-7-8: breathe in 4, hold 7, out 8.")
@@ -662,7 +681,6 @@ elif st.session_state.step == "patience_game":
     if len(game_clicks) < needed:
         st.caption(f"Tap {len(game_clicks) + 1} of {needed}")
         if st.button("Tap", type="primary", key="game_tap"):
-            st.session_state["total_clicks"] = st.session_state.get("total_clicks", 0) + 1
             if "game_clicks" not in st.session_state:
                 st.session_state.game_clicks = []
             st.session_state.game_clicks.append(time.time())
@@ -682,12 +700,12 @@ elif st.session_state.step == "patience_game":
         else:
             reflection = "You finished the taps. Ready for your results."
         st.session_state.patience_game_done = True
-        glass_card(f'<p style="margin:0; color:#2D4A42;">{reflection}</p>', "")
+        glass_card(f'<p style="margin:0; color:#e2e8f0;">{reflection}</p>', "")
         if st.button("Continue to my results", type="primary", key="game_continue"):
             _go_to_step("results")
     st.markdown("---")
     if st.button("Skip and go to results", key="game_skip"):
-        _go_to_step("results")
+        _go_to_step("results")  # no tap count added
 
 # ——— Results ———
 elif st.session_state.step == "results":
