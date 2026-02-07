@@ -76,7 +76,6 @@ from ui.components import (
     survey_encouragement,
 )
 from ui.butterfly_bg import butterfly_background
-from ui.chat import render_chat_widget
 from games.breathing import render_breathing_game
 from games.memory_match import render_memory_match
 from games.shell_game import render_shell_game
@@ -1105,7 +1104,6 @@ elif st.session_state.step == "results":
             init_state()
             _go_to_step("intro")
 
-# ——— Chat widget (bottom of page, every screen) ———
-st.markdown("---")
-if render_chat_widget is not None:
-    render_chat_widget()
+# ——— Chat widget disabled for Streamlit Cloud compatibility ———
+# st.markdown("---")
+# render_chat_widget()  # Re-enable when ui.chat loads in your environment
