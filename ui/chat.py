@@ -92,34 +92,40 @@ def get_bot_response(user_message: str, history: list) -> str:
     return random.choice(REPLIES_DEFAULT)
 
 
-def render_chat_widget() -> None:
+def render_chat_widget(*, expanded_on_first_visit: bool = True, floating: bool = True) -> None:
     """
-    Render the chat pop-up at the bottom: expander with chat history and input.
-    Uses st.chat_message and st.chat_input. Stores messages in st.session_state[CHAT_MESSAGES_KEY].
+    Render the chat as a pop-up: floating card (or inline) with chat history and input.
+    - expanded_on_first_visit: open the expander when there are no messages yet.
+    - floating: use CSS so the chat appears as a fixed card (bottom-right); set False for inline.
     """
     if CHAT_MESSAGES_KEY not in st.session_state:
         st.session_state[CHAT_MESSAGES_KEY] = []
 
     messages = st.session_state[CHAT_MESSAGES_KEY]
+    is_first_visit = len(messages) == 0
+    expanded = expanded_on_first_visit and is_first_visit
 
-    # Pop-up style: expander at bottom
-    with st.expander("💬 **Chat with me** — I'm here to listen", expanded=False):
-        st.caption("Ask how you are, how your day was — I'll answer sweetly. Nothing is stored.")
-        # Welcome message if first time
-        if len(messages) == 0:
+    # Anchor for CSS: float the next sibling (the expander) as a pop-up card
+    if floating:
+        st.markdown(
+            '<div class="cc-chat-popup-anchor" aria-hidden="true"></div>',
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("💬 **Chat with me** — I'm here to listen", expanded=expanded, key="cc_chat_expander"):
+        st.markdown(
+            '<p class="cc-chat-intro">Ask how you are, how your day was — I\'ll answer sweetly. Nothing is stored.</p>',
+            unsafe_allow_html=True,
+        )
+        if is_first_visit:
             with st.chat_message("assistant"):
                 st.markdown(CHAT_WELCOME)
-            # Don't add to messages so we don't duplicate on rerun; we'll show it only when history is empty
-        # Show history
         for m in messages:
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
-        # Input
         prompt = st.chat_input("Say something...")
         if prompt:
             messages.append({"role": "user", "content": prompt})
             reply = get_bot_response(prompt, messages)
             messages.append({"role": "assistant", "content": reply})
             st.rerun()
-
-    # When history is empty, the welcome is shown above; after first user message we show full history including welcome.

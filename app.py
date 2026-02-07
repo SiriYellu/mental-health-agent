@@ -176,57 +176,58 @@ st.markdown("""
         .cc-survey-progress-fill { width: calc(var(--cc-survey-pct, 0) * 1%) !important; }
     }
 
-    /* ----- Game-like palette: warm + calm (not plain) ----- */
+    /* ----- 2026 Peaceful palette: Midnight Navy + Deep Emerald (dark mode), low contrast ----- */
     :root {
-        --cc-bg-start: #f8f4f0;
-        --cc-bg-mid: #eef5f2;
+        --cc-bg-start: #EEF3F9;
+        --cc-bg-mid: #DAEAF7;
         --cc-bg-end: #e8f0ed;
-        --cc-accent: #2d7a63;
-        --cc-accent-soft: #4a9d82;
-        --cc-mood: #5b7cba;
-        --cc-worry: #c9a227;
+        --cc-accent: #0d9488;
+        --cc-accent-soft: #2dd4bf;
+        --cc-mood: #537692;
+        --cc-worry: #A46379;
         --cc-feel: #6b9080;
-        --cc-card-bg: rgba(255,255,255,0.82);
-        --cc-card-border: rgba(45,122,99,0.15);
+        --cc-card-bg: rgba(255,255,255,0.88);
+        --cc-card-border: rgba(13,148,136,0.12);
+        --cc-midnight: #0f172a;
+        --cc-deep-emerald: #134e4a;
     }
 
-    /* ----- Realtime-style moving background: multiple layers, floating shapes ----- */
+    /* ----- Soft mesh gradient background (organic, adaptive) ----- */
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 20%, #334155 40%, #1e3a5f 60%, #0f172a 80%);
-        background-size: 400% 400%;
-        animation: cc-bg-realtime 15s ease infinite;
+        background: linear-gradient(160deg, #0f172a 0%, #134e4a 28%, #0c4a6e 50%, #0f172a 78%);
+        background-size: 200% 200%;
+        animation: cc-bg-mesh 20s ease-in-out infinite;
     }
-    @keyframes cc-bg-realtime {
+    @keyframes cc-bg-mesh {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
     }
     .stApp::before {
-        content: ""; position: fixed; top: -20%; left: -10%; width: 50%; height: 60%;
-        background: radial-gradient(ellipse, rgba(56,189,248,0.15) 0%, rgba(14,165,233,0.08) 40%, transparent 70%);
+        content: ""; position: fixed; top: -15%; left: -5%; width: 55%; height: 55%;
+        background: radial-gradient(ellipse, rgba(45,212,191,0.12) 0%, rgba(13,148,136,0.06) 50%, transparent 70%);
         border-radius: 50%; pointer-events: none; z-index: 0;
         animation: cc-float1 18s ease-in-out infinite;
     }
     .stApp::after {
-        content: ""; position: fixed; bottom: -25%; right: -15%; width: 55%; height: 55%;
-        background: radial-gradient(ellipse, rgba(34,211,238,0.12) 0%, rgba(6,182,212,0.06) 45%, transparent 70%);
+        content: ""; position: fixed; bottom: -20%; right: -10%; width: 50%; height: 50%;
+        background: radial-gradient(ellipse, rgba(14,165,233,0.08) 0%, rgba(6,182,212,0.04) 50%, transparent 70%);
         border-radius: 50%; pointer-events: none; z-index: 0;
-        animation: cc-float2 20s ease-in-out infinite;
+        animation: cc-float2 22s ease-in-out infinite;
     }
-    @keyframes cc-float1 { 0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.9; } 33% { transform: translate(12%, 8%) scale(1.1) rotate(5deg); opacity: 1; } 66% { transform: translate(-5%, 12%) scale(0.95) rotate(-3deg); opacity: 0.85; } }
-    @keyframes cc-float2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-10%, -12%) scale(1.15); } }
-    /* Floating accent orbs (via block-container) */
+    @keyframes cc-float1 { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; } 50% { transform: translate(8%, 6%) scale(1.05); opacity: 1; } }
+    @keyframes cc-float2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-6%, -8%) scale(1.08); opacity: 0.9; } }
     .block-container::before {
-        content: ""; position: fixed; top: 40%; left: 60%; width: 25%; height: 25%;
-        background: radial-gradient(circle, rgba(251,191,36,0.08) 0%, transparent 70%);
+        content: ""; position: fixed; top: 50%; left: 50%; width: 40%; height: 40%;
+        background: radial-gradient(circle, rgba(253,239,192,0.04) 0%, transparent 65%);
         border-radius: 50%; pointer-events: none; z-index: 0;
-        animation: cc-float3 12s ease-in-out infinite;
+        animation: cc-float3 14s ease-in-out infinite;
     }
-    @keyframes cc-float3 { 0%, 100% { transform: translate(0, 0); opacity: 0.6; } 50% { transform: translate(15%, -15%); opacity: 1; } }
+    @keyframes cc-float3 { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; } }
     .block-container > * { position: relative; z-index: 1; }
-    /* Light noise overlay */
+    /* Tactile texture: very subtle paper/noise overlay */
     .block-container::after {
         content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
     }
 
     /* ----- Step transition: fade + slide up ----- */
@@ -252,7 +253,7 @@ st.markdown("""
         background: rgba(30,41,59,0.75);
         backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
         border-radius: 22px; padding: 1.5rem 1.75rem; margin: 1rem 0;
-        border: 1px solid rgba(27,94,74,0.08);
+        border: 1px solid rgba(13,148,136,0.1);
         box-shadow: 0 4px 24px rgba(0,0,0,0.04), 0 0 0 1px rgba(255,255,255,0.5) inset;
         transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
     }
@@ -265,7 +266,7 @@ st.markdown("""
     .cc-stepper { display: flex; align-items: center; justify-content: space-between; margin: 1.5rem 0; gap: 0.5rem; position: relative; }
     .cc-stepper-progress {
         position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px;
-        background: linear-gradient(90deg, #1B5E4A, #2d7a63); border-radius: 3px;
+        background: linear-gradient(90deg, var(--cc-deep-emerald), var(--cc-accent)); border-radius: 3px;
         width: 0; max-width: calc(100% - 2rem);
         animation: cc-stepperFill 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
@@ -274,8 +275,8 @@ st.markdown("""
     .cc-step::before { content: ""; position: absolute; top: 11px; left: -50%; width: 100%; height: 3px; background: rgba(27,94,74,0.12); z-index: 0; border-radius: 2px; }
     .cc-step:first-child::before { display: none; }
     .cc-step.active .cc-step-dot {
-        background: #1B5E4A; transform: scale(1.2);
-        box-shadow: 0 0 0 4px rgba(27,94,74,0.18), 0 2px 8px rgba(27,94,74,0.2);
+        background: var(--cc-accent); transform: scale(1.2);
+        box-shadow: 0 0 0 4px rgba(13,148,136,0.2), 0 2px 8px rgba(13,148,136,0.25);
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
     .cc-step.done .cc-step-dot { background: #2d7a63; }
@@ -295,7 +296,7 @@ st.markdown("""
     .cc-calm-meter-label { font-size: 0.9375rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
     .cc-calm-meter-track { height: 10px; background: rgba(27,94,74,0.1); border-radius: 10px; overflow: hidden; }
     .cc-calm-meter-fill {
-        height: 100%; width: 0; background: linear-gradient(90deg, #2d7a63, #1B5E4A); border-radius: 10px;
+        height: 100%; width: 0; background: linear-gradient(90deg, var(--cc-accent-soft), var(--cc-accent)); border-radius: 10px;
         animation: cc-meterFill 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
     @keyframes cc-meterFill { to { width: calc(var(--cc-meter-pct, 0) * 1%); } }
@@ -316,19 +317,19 @@ st.markdown("""
         transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, background 0.2s ease;
     }
     .stButton > button[kind="primary"], .stButton > button:first-of-type {
-        background: linear-gradient(180deg, #2d7a63 0%, #1B5E4A 100%) !important;
-        box-shadow: 0 2px 12px rgba(27,94,74,0.35), 0 1px 0 rgba(255,255,255,0.15) inset !important;
+        background: linear-gradient(180deg, var(--cc-accent-soft) 0%, var(--cc-accent) 100%) !important;
+        box-shadow: 0 2px 12px rgba(13,148,136,0.35), 0 1px 0 rgba(255,255,255,0.15) inset !important;
         color: #fff !important; border: none !important;
     }
     .stButton > button[kind="primary"]:hover, .stButton > button:first-of-type:hover {
-        transform: translateY(-2px); box-shadow: 0 6px 20px rgba(27,94,74,0.4), 0 1px 0 rgba(255,255,255,0.2) inset !important;
+        transform: translateY(-2px); box-shadow: 0 6px 20px rgba(13,148,136,0.4), 0 1px 0 rgba(255,255,255,0.2) inset !important;
     }
     .stButton > button[kind="primary"]:active, .stButton > button:first-of-type:active { transform: translateY(0); }
     .stButton > button[kind="secondary"], .stButton > button:not([kind="primary"]):not(:first-of-type) {
-        background: transparent !important; color: #1B5E4A !important; border: 2px solid rgba(27,94,74,0.3) !important;
+        background: transparent !important; color: var(--cc-accent) !important; border: 2px solid rgba(13,148,136,0.35) !important;
     }
     .stButton > button[kind="secondary"]:hover, .stButton > button:not([kind="primary"]):not(:first-of-type):hover {
-        background: rgba(27,94,74,0.06) !important; transform: translateY(-1px);
+        background: rgba(13,148,136,0.08) !important; transform: translateY(-1px);
     }
 
     /* Chips / radio hover */
@@ -404,6 +405,32 @@ st.markdown("""
     .cc-intro-cta { display: flex; gap: 1rem; margin: 1.25rem 0; flex-wrap: wrap; }
     .cc-intro-cta .stButton { flex: 1; min-width: 140px; }
     .cc-intro-cta .stButton > button { width: 100%; justify-content: center; }
+
+    /* ----- Chat pop-up: floating card (bottom-right), open on first visit ----- */
+    .cc-chat-popup-anchor { display: block; height: 0; margin: 0; padding: 0; overflow: hidden; }
+    /* Float the block that immediately follows the anchor (Streamlit may wrap expander in section/div) */
+    .cc-chat-popup-anchor + div,
+    .cc-chat-popup-anchor + section {
+        position: fixed !important; bottom: 1.25rem !important; right: 1.25rem !important;
+        left: auto !important; top: auto !important; width: 380px !important; max-width: calc(100vw - 2.5rem) !important;
+        z-index: 999 !important; margin: 0 !important;
+        background: rgba(26, 32, 44, 0.94) !important; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-radius: 20px !important; border: 1px solid rgba(45, 212, 191, 0.15) !important;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.06) inset !important;
+    }
+    .cc-chat-popup-anchor + div summary,
+    .cc-chat-popup-anchor + section summary {
+        padding: 1rem 1.25rem !important; color: #f1f5f9 !important; font-weight: 600 !important;
+        border-radius: 20px 20px 0 0 !important;
+    }
+    .cc-chat-intro { font-size: 0.9rem; color: #94a3b8 !important; margin: 0 0 0.75rem 0 !important; line-height: 1.45; }
+    /* Chat message bubbles: soft Oceanic Calm feel */
+    .cc-chat-popup-anchor + div [data-testid="stChatMessage"],
+    .cc-chat-popup-anchor + section [data-testid="stChatMessage"] {
+        background: rgba(218, 234, 247, 0.15) !important;
+        border: 1px solid rgba(13, 148, 136, 0.1) !important;
+        border-radius: 16px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1201,7 +1228,6 @@ elif st.session_state.step == "results":
             init_state()
             _go_to_step("intro")
 
-# ——— Chat widget (bottom of page; optional if import failed) ———
+# ——— Chat: floating pop-up (bottom-right), open on first visit ———
 if render_chat_widget is not None:
-    st.markdown("---")
-    render_chat_widget()
+    render_chat_widget(expanded_on_first_visit=True, floating=True)
